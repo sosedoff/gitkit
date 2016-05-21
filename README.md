@@ -14,6 +14,7 @@ go get github.com/sosedoff/gitkit
 package main
 
 import (
+  "log"
   "net/http"
   "github.com/sosedoff/gitkit"
 )
@@ -26,6 +27,12 @@ func main() {
       "pre-receive": []byte(`echo "Hello World!"`),
     },
   })
+
+  // Configure git server. Will create git repos path if it does not exist.
+  // If hooks are set, it will also update all repos with new version of hook scripts.
+  if err := service.Setup(); err != nil {
+    log.Fatal(err)
+  }
 
   http.Handle("/", service)
   http.ListenAndServe(":5000", nil)
