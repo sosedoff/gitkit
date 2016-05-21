@@ -212,6 +212,42 @@ func (s *Server) postRPC(rpc string, w http.ResponseWriter, r *Request) {
 	}
 }
 
+func (s *Server) Setup() error {
+	//  Try to create directory for all git repositories if it does not exist
+	if _, err := os.Stat(s.config.Dir); err != nil {
+		if err = os.Mkdir(s.config.Dir, 0755); err != nil {
+			logError("config", err)
+			return err
+		}
+	}
+
+	// Reconfigure all git hooks if they're configured, otherwise leave as-is.
+	if len(s.config.Hooks) > 0 {
+		items, err := ioutil.ReadDir(s.config.Dir)
+		if err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			if !item.IsDir() {
+				continue
+			}
+
+			logInfo("hook-update", "updating repository hooks: "+item.Name())
+
+			for hook, script := range s.config.Hooks {
+				hookPath := path.Join(s.config.Dir, item.Name(), "hooks", hook)
+				if err := ioutil.WriteFile(hookPath, []byte(script), 0755); err != nil {
+					logError("hook-update", err)
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func initRepo(name string, config *Config) error {
 	p := path.Join(config.Dir, name)
 
