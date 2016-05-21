@@ -39,6 +39,12 @@ func New(cfg Config) *Server {
 		service{"POST", "/git-upload-pack", s.postRPC, "git-upload-pack"},
 		service{"POST", "/git-receive-pack", s.postRPC, "git-receive-pack"},
 	}
+
+	// Use PATH if full path is not specified
+	if s.config.GitPath == "" {
+		s.config.GitPath = "git"
+	}
+
 	return &s
 }
 
@@ -94,7 +100,7 @@ func (s *Server) getInfoRefs(_ string, w http.ResponseWriter, r *Request) {
 		return
 	}
 
-	cmd, pipe := gitCommand("git", subCommand(rpc), "--stateless-rpc", "--advertise-refs", r.RepoPath)
+	cmd, pipe := gitCommand(s.config.GitPath, subCommand(rpc), "--stateless-rpc", "--advertise-refs", r.RepoPath)
 	if err := cmd.Start(); err != nil {
 		fail500(w, context, err)
 		return
@@ -139,7 +145,7 @@ func (s *Server) postRPC(rpc string, w http.ResponseWriter, r *Request) {
 		}
 	}
 
-	cmd, pipe := gitCommand("git", subCommand(rpc), "--stateless-rpc", r.RepoPath)
+	cmd, pipe := gitCommand(s.config.GitPath, subCommand(rpc), "--stateless-rpc", r.RepoPath)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		fail500(w, context, err)
@@ -175,7 +181,7 @@ func (s *Server) postRPC(rpc string, w http.ResponseWriter, r *Request) {
 func initRepo(name string, config *Config) error {
 	p := path.Join(config.Dir, name)
 
-	if err := exec.Command("git", "init", "--bare", p).Run(); err != nil {
+	if err := exec.Command(config.GitPath, "init", "--bare", p).Run(); err != nil {
 		return err
 	}
 
