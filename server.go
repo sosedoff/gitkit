@@ -24,6 +24,7 @@ type service struct {
 type Server struct {
 	config   Config
 	services []service
+	AuthFunc func(Credential) (bool, error)
 }
 
 type Request struct {
@@ -64,6 +65,39 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if svc == nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
+	}
+
+	if s.config.Auth {
+		if s.AuthFunc == nil {
+			logError("auth", fmt.Errorf("no auth backend provided"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			w.Header()["WWW-Authenticate"] = []string{`Basic realm=""`}
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		cred, err := parseAuth(authHeader)
+		if err != nil {
+			logError("auth", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		allow, err := s.AuthFunc(cred)
+		if !allow || err != nil {
+			if err != nil {
+				logError("auth", err)
+			}
+
+			logError("auth", fmt.Errorf("rejected user %s", cred.Username))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 	}
 
 	repoName := strings.Split(r.URL.Path, "/")[1]
