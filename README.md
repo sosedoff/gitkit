@@ -80,6 +80,10 @@ This code was based on the following sources:
 - https://github.com/flynn/flynn/tree/master/gitreceive
 - https://gitlab.com/gitlab-org/gitlab-workhorse/tree/master/internal/git
 
+Git HTTP protocol documentation:
+
+- https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols
+
 ## License
 
 MIT
