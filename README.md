@@ -59,7 +59,7 @@ $ git push origin master
 # Counting objects: 3, done.
 # Writing objects: 100% (3/3), 213 bytes | 0 bytes/s, done.
 # Total 3 (delta 0), reused 0 (delta 0)
-# remote: Hello World!
+# remote: Hello World! <----------------- pre-receive hook
 # To http://localhost:5060/test.git
 # * [new branch]      master -> master
 ```
