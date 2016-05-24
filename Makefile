@@ -1,5 +1,4 @@
 test:
-	go get
 	go test -v
 
 build:
@@ -10,3 +9,4 @@ all:
 
 setup:
 	go get github.com/mitchellh/gox
+	go get
