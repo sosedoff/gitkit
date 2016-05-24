@@ -133,11 +133,11 @@ $ git clone http://localhost:5000/awesome-sauce.git
 # Checking connectivity... done.
 ```
 
-Git also allows using `.netrc` files for authentication purposes. Open your '~/.netrc'
+Git also allows using `.netrc` files for authentication purposes. Open your `~/.netrc`
 file and add the following line:
 
 ```
-machine localtion
+machine localhost
   login hello
   password world
 ```

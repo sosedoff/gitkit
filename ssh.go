@@ -164,6 +164,11 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 func (s *SSH) setup() error {
 	config := &ssh.ServerConfig{
 		PublicKeyCallback: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+			// Allow any request if auth is not turned on
+			if !s.config.Auth {
+				return &ssh.Permissions{Extensions: map[string]string{"key-id": "guest"}}, nil
+			}
+
 			// Reject all incoming request if no key lookup is defined
 			if s.PublicKeyLookupFunc == nil {
 				log.Println("ssh: no public key lookup function is defined")
