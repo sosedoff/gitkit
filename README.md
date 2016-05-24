@@ -235,6 +235,81 @@ Done, you have now ability to run git push/pull. The important stuff in all exam
 above is `lookupKey` function. It controls whether user is allowd to authenticate with
 ssh or not.
 
+## Receiver
+
+In Git, The first script to run when handling a push from a client is pre-receive. 
+It takes a list of references that are being pushed from stdin; if it exits non-zero, 
+none of them are accepted. [More on hooks](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks).
+
+```go
+package main
+
+import (
+  "log"
+  "os"
+
+  "github.com/sosedoff/gitkit"
+)
+
+// HookInfo contains information about branch, before and after revisions.
+// tmpPath is a temporary directory with checked out git tree for the commit.
+func receive(hook *gitkit.HookInfo, tmpPath string) error {
+  log.Println("Ref:", hook.Ref)
+  log.Println("Old revision:", hook.OldRev)
+  log.Println("New revision:", hook.NewRev)
+
+  // Getting a commit message is built-in
+  message, err := gitkit.ReadCommitMessage(hook.NewRev)
+  if err != nil {
+    return err
+  }
+
+  log.Println("Message:", message)
+  return nil
+}
+
+func main() {
+  receiver := gitkit.Receiver{
+    MasterOnly:  false,         // if set to true, only pushes to master branch will be allowed
+    TmpDir:      "/tmp/gitkit", // directory for temporary git checkouts
+    HandlerFunc: receive,       // your handler function
+  }
+
+  // Git hook data is provided via STDIN
+  if err := receiver.Handle(os.Stdin); err != nil {
+    log.Println("Error:", err)
+    os.Exit(1) // terminating with non-zero status will cancel push
+  }
+}
+```
+
+To test if receiver works, you will need to add a sample pre-receive hook to any
+git repo. With `go run` its easier to debug but final script should be compiled
+and will run very fast.
+
+```bash
+#!/bin/bash
+cat | go run /path/to/your-receiver.go
+```
+
+Modify something in the repo, commit the change and push:
+
+```bash
+$ git push
+# Counting objects: 3, done.
+# Delta compression using up to 8 threads.
+# Compressing objects: 100% (3/3), done.
+# Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
+# Total 3 (delta 2), reused 0 (delta 0)
+# -------------------------- out receiver output is here ----------------
+# remote: 2016/05/24 17:21:37 Ref: refs/heads/master
+# remote: 2016/05/24 17:21:37 Old revision: 5ee8d0891d1e5574e427dc16e0908cb9d28551b9
+# remote: 2016/05/24 17:21:37 New revision: e13d6b3a27403029fe674e7b911efd468b035a33
+# remote: 2016/05/24 17:21:37 Message: Remove stuff
+# To git@localhost:dummy-app.git
+#    5ee8d08..e13d6b3  master -> master
+```
+
 ## Sources
 
 This code was based on the following sources:
