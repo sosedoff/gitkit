@@ -192,46 +192,47 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 	}
 }
 
+func (s *SSH) createServerKey() error {
+	if err := os.MkdirAll(s.config.KeyPath(), os.ModePerm); err != nil {
+		return err
+	}
+	out, err := exec.Command("ssh-keygen", "-f", s.config.KeyPath(), "-t", "rsa", "-N", "").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("key creating failed: %s", out)
+	}
+	return nil
+}
+
 func (s *SSH) setup() error {
 	config := &ssh.ServerConfig{
-		PublicKeyCallback: func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-			// Allow any request if auth is not turned on
-			if !s.config.Auth {
-				return &ssh.Permissions{Extensions: map[string]string{"key-id": "guest"}}, nil
-			}
+		ServerVersion: fmt.Sprintf("SSH-2.0-gitkit %s", Version),
+	}
 
-			// Reject all incoming request if no key lookup is defined
-			if s.PublicKeyLookupFunc == nil {
-				log.Println("ssh: no public key lookup function is defined")
-				return nil, fmt.Errorf("no key lookup func")
-			}
+	if s.config.KeyDir == "" {
+		return fmt.Errorf("key directory is not provided")
+	}
 
-			// Lookup public key with user-defined function
+	if !s.config.Auth {
+		config.NoClientAuth = true
+	} else {
+		if s.PublicKeyLookupFunc == nil {
+			return fmt.Errorf("public key lookup func is not provided")
+		}
+
+		config.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			pkey, err := s.PublicKeyLookupFunc(strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
 			if err != nil {
 				return nil, err
 			}
-
 			return &ssh.Permissions{Extensions: map[string]string{"key-id": pkey.Id}}, nil
-		},
-	}
-
-	if s.config.KeyDir == "" {
-		return fmt.Errorf("ssh: key directory is not provided")
-	}
-
-	keypath := filepath.Join(s.config.KeyDir, "gitkit.rsa")
-
-	// Automatically create key pair for server use
-	if !fileExists(keypath) {
-		log.Println("ssh: creating a new server key")
-		os.MkdirAll(filepath.Dir(keypath), os.ModePerm)
-		_, stderr, err := execCommand("ssh-keygen", "-f", keypath, "-t", "rsa", "-N", "")
-		if err != nil {
-			return fmt.Errorf("Fail to generate private key: %v - %s", err, stderr)
 		}
-	} else {
-		log.Println("ssh: server key exists, skipping creation")
+	}
+
+	keypath := s.config.KeyPath()
+	if !fileExists(keypath) {
+		if err := s.createServerKey(); err != nil {
+			return err
+		}
 	}
 
 	privateBytes, err := ioutil.ReadFile(keypath)
@@ -281,13 +282,18 @@ func (s *SSH) ListenAndServe(bind string) error {
 
 			log.Printf("ssh: connection from %s (%s)", sConn.RemoteAddr(), sConn.ClientVersion())
 
-			if s.config.GitUser != "" && sConn.User() != s.config.GitUser {
+			if s.config.Auth && s.config.GitUser != "" && sConn.User() != s.config.GitUser {
 				sConn.Close()
 				return
 			}
 
+			keyId := ""
+			if sConn.Permissions != nil {
+				keyId = sConn.Permissions.Extensions["key-id"]
+			}
+
 			go ssh.DiscardRequests(reqs)
-			go s.handleConnection(sConn.Permissions.Extensions["key-id"], chans)
+			go s.handleConnection(keyId, chans)
 		}()
 	}
 }
