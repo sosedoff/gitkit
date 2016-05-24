@@ -1,9 +1,9 @@
-build:
-	go build
-
 test:
 	go get
 	go test -v
+
+build:
+	go build
 
 all:
 	gox -osarch="darwin/amd64 linux/amd64" -output="gitkit_{{.OS}}_{{.Arch}}"
