@@ -1,6 +1,6 @@
 # gitkit
 
-Smart HTTP git server for Go
+Toolkit to build Git workflows with Go
 
 ## Install
 
@@ -9,6 +9,8 @@ go get github.com/sosedoff/gitkit
 ```
 
 ## Examples
+
+### Smart HTTP Server
 
 ```go
 package main
@@ -80,7 +82,7 @@ In the example's console you'll see something like this:
 2016/05/20 20:03:34 request: POST localhost:5000/test.git/git-receive-pack
 ```
 
-### Authentication
+#### Authentication
 
 ```go
 package main
@@ -151,6 +153,7 @@ This code was based on the following sources:
 
 - https://github.com/flynn/flynn/tree/master/gitreceive
 - https://gitlab.com/gitlab-org/gitlab-workhorse/tree/master/internal/git
+- https://github.com/gogits/gogs/blob/master/modules/ssh/ssh.go
 
 Git HTTP protocol documentation:
 
