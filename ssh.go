@@ -280,6 +280,12 @@ func (s *SSH) ListenAndServe(bind string) error {
 			}
 
 			log.Printf("ssh: connection from %s (%s)", sConn.RemoteAddr(), sConn.ClientVersion())
+
+			if s.config.GitUser != "" && sConn.User() != s.config.GitUser {
+				sConn.Close()
+				return
+			}
+
 			go ssh.DiscardRequests(reqs)
 			go s.handleConnection(sConn.Permissions.Extensions["key-id"], chans)
 		}()
