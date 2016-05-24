@@ -8,9 +8,7 @@ Toolkit to build Git workflows with Go
 go get github.com/sosedoff/gitkit
 ```
 
-## Examples
-
-### Smart HTTP Server
+## Smart HTTP Server
 
 ```go
 package main
@@ -82,7 +80,7 @@ In the example's console you'll see something like this:
 2016/05/20 20:03:34 request: POST localhost:5000/test.git/git-receive-pack
 ```
 
-#### Authentication
+### Authentication
 
 ```go
 package main
@@ -147,7 +145,7 @@ Keep in mind that the best practice is to use auth tokens instead of plaintext p
 for authentication. See [Heroku's docs](https://devcenter.heroku.com/articles/authentication#api-token-storage)
 for more information.
 
-### Git SSH server
+## SSH server
 
 ```go
 package main
