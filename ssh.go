@@ -255,6 +255,10 @@ func (s *SSH) ListenAndServe(bind string) error {
 		return err
 	}
 
+	if err := s.config.Setup(); err != nil {
+		return err
+	}
+
 	listener, err := net.Listen("tcp", bind)
 	if err != nil {
 		return err
