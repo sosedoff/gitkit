@@ -10,10 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
+
+// Regular expression to match incoming git-over-ssh commands
+var gitCommandRegex = regexp.MustCompile(`^(git[-|\\s]upload-pack|git[-|\\s]upload-archive|git[-|\\s]receive-pack) '(.*)'$`)
 
 type PublicKey struct {
 	Id          string
@@ -28,8 +32,27 @@ type SSH struct {
 	PublicKeyLookupFunc func(string) (*PublicKey, error)
 }
 
+type GitCommand struct {
+	Command string
+	Repo    string
+}
+
+func parseGitCommand(cmd string) (*GitCommand, error) {
+	matches := gitCommandRegex.FindAllStringSubmatch(cmd, 1)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("invalid git command")
+	}
+	return &GitCommand{matches[0][1], matches[0][2]}, nil
+}
+
 func NewSSH(config Config) *SSH {
-	return &SSH{config: &config}
+	s := &SSH{config: &config}
+
+	// Use PATH if full path is not specified
+	if s.config.GitPath == "" {
+		s.config.GitPath = "git"
+	}
+	return s
 }
 
 func fileExists(path string) bool {
@@ -98,20 +121,28 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 					}
 				case "exec":
 					cmdName := strings.TrimLeft(payload, "'()")
-					args := strings.Split(cmdName, " ")
 					log.Printf("ssh: payload '%v'", cmdName)
 
 					if strings.HasPrefix(cmdName, "\x00") {
 						cmdName = strings.Replace(cmdName, "\x00", "", -1)[1:]
 					}
 
-					prefix := args[0]
-					if !(prefix == "git-receive-pack" || prefix == "git-upload-pack") {
-						ch.Write([]byte("Only git commmands are supported.\r\n"))
+					gitcmd, err := parseGitCommand(cmdName)
+					if err != nil {
+						log.Println("ssh: error parsing command:", err)
+						ch.Write([]byte("Invalid command.\r\n"))
 						return
 					}
 
-					cmd := exec.Command(prefix, strings.Replace(args[1], "'", "", 2))
+					if !repoExists(filepath.Join(s.config.Dir, gitcmd.Repo)) && s.config.AutoCreate == true {
+						err := initRepo(gitcmd.Repo, s.config)
+						if err != nil {
+							logError("repo-init", err)
+							return
+						}
+					}
+
+					cmd := exec.Command(gitcmd.Command, gitcmd.Repo)
 					cmd.Dir = s.config.Dir
 					cmd.Env = append(os.Environ(), "GITKIT_KEY="+keyID)
 					// cmd.Env = append(os.Environ(), "SSH_ORIGINAL_COMMAND="+cmdName)
