@@ -147,6 +147,94 @@ Keep in mind that the best practice is to use auth tokens instead of plaintext p
 for authentication. See [Heroku's docs](https://devcenter.heroku.com/articles/authentication#api-token-storage)
 for more information.
 
+### Git SSH server
+
+```go
+package main
+
+import (
+  "log"
+  "github.com/sosedoff/gitkit"
+)
+
+// User-defined key lookup function. You can make a call to a database or
+// some sort of cache storage (redis/memcached) to speed things up.
+// Content is a string containing ssh public key of a user.
+func lookupKey(content string) (*gitkit.PublicKey, error) {
+  return &gitkit.PublicKey{Id: "12345"}, nil
+}
+
+func main() {
+  // In the example below you need to specify a full path to a directory that
+  // contains all git repositories, and also a directory that has a gitkit specific
+  // ssh private and public key pair that used to run ssh server.
+  server := gitkit.NewSSH(gitkit.Config{
+    Dir:    "/path/to/git/repos",
+    KeyDir: "/path/to/gitkit",
+  })
+
+  // User-defined key lookup function. All requests will be rejected if this function
+  // is not provider. SSH server only accepts key-based authentication.
+  server.PublicKeyLookupFunc = lookupKey
+
+  // Specify host and port to run the server on.
+  err := server.ListenAndServe(":2222")
+  if err != nil {
+    log.Fatal(err)
+  }
+}
+```
+
+Example above uses non-standard SSH port 2222, which can't be used for local testing
+by default. To make it work you must modify you ssh client configuration file with
+the following snippet:
+
+```
+$ nano ~/.ssh/config
+```
+
+Paste the following:
+
+```
+Host localhost
+  Port 2222
+```
+
+Now that the server is configured, we can fire it up:
+
+```bash
+$ go run ssh_server.go
+```
+
+First thing you'll need to make sure you have tested the ssh host verification:
+
+```bash
+$ ssh git@localhost -p 2222
+# The authenticity of host '[localhost]:2222 ([::1]:2222)' can't be established.
+# RSA key fingerprint is SHA256:eZwC9VSbVnoHFRY9QKGK3aBSUqkShRF0HxFmQyLmBJs.
+# Are you sure you want to continue connecting (yes/no)? yes
+# Warning: Permanently added '[localhost]:2222' (RSA) to the list of known hosts.
+# Unsupported request type.
+# Connection to localhost closed.
+```
+
+All good now. `Unsupported request type.` is a succes output since gitkit does not
+allow running shell sessions. Assuming you have configured the directory for git
+repositories, clone the test repo:
+
+```bash
+$ git clone git@localhost:test.git
+# Cloning into 'test'...
+# remote: Counting objects: 3, done.
+# remote: Total 3 (delta 0), reused 0 (delta 0)
+# Receiving objects: 100% (3/3), done.
+# Checking connectivity... done.
+```
+
+Done, you have now ability to run git push/pull. The important stuff in all examples
+above is `lookupKey` function. It controls whether user is allowd to authenticate with
+ssh or not.
+
 ## Sources
 
 This code was based on the following sources:
