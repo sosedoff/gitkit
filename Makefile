@@ -2,6 +2,7 @@ build:
 	go build
 
 test:
+	go get
 	go test -v
 
 all:
