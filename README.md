@@ -67,7 +67,7 @@ $ git push origin master
 # Writing objects: 100% (3/3), 213 bytes | 0 bytes/s, done.
 # Total 3 (delta 0), reused 0 (delta 0)
 # remote: Hello World! <----------------- pre-receive hook
-# To http://localhost:5060/test.git
+# To http://localhost:5000/test.git
 # * [new branch]      master -> master
 ```
 
@@ -119,14 +119,14 @@ auth code above.
 ```bash
 $ git clone http://localhost:5000/awesome-sauce.git
 # Cloning into 'awesome-sauce'...
-# Username for 'http://localhost:5060': foo
-# Password for 'http://foo@localhost:5060':
-# fatal: Authentication failed for 'http://localhost:5060/awesome-sauce.git/'
+# Username for 'http://localhost:5000': foo
+# Password for 'http://foo@localhost:5000':
+# fatal: Authentication failed for 'http://localhost:5000/awesome-sauce.git/'
 
 $ git clone http://localhost:5000/awesome-sauce.git
 # Cloning into 'awesome-sauce'...
-# Username for 'http://localhost:5060': hello
-# Password for 'http://hello@localhost:5060':
+# Username for 'http://localhost:5000': hello
+# Password for 'http://hello@localhost:5000':
 # warning: You appear to have cloned an empty repository.
 # Checking connectivity... done.
 ```
