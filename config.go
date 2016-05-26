@@ -28,26 +28,31 @@ func (c *Config) Setup() error {
 		}
 	}
 
-	// Reconfigure all git hooks if they're configured, otherwise leave as-is.
-	if len(c.Hooks) > 0 {
-		items, err := ioutil.ReadDir(c.Dir)
-		if err != nil {
-			return err
+	files, err := ioutil.ReadDir(c.Dir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
 		}
 
-		for _, item := range items {
-			if !item.IsDir() {
-				continue
+		hooksPath := path.Join(c.Dir, file.Name(), "hooks")
+
+		// Cleanup all existing hooks
+		hookFiles, err := ioutil.ReadDir(hooksPath)
+		if err == nil {
+			for _, h := range hookFiles {
+				os.Remove(path.Join(hooksPath, h.Name()))
 			}
+		}
 
-			logInfo("hook-update", "updating repository hooks: "+item.Name())
-
-			for hook, script := range c.Hooks {
-				hookPath := path.Join(c.Dir, item.Name(), "hooks", hook)
-				if err := ioutil.WriteFile(hookPath, []byte(script), 0755); err != nil {
-					logError("hook-update", err)
-					return err
-				}
+		// Setup new hooks
+		for hook, script := range c.Hooks {
+			if err := ioutil.WriteFile(path.Join(hooksPath, hook), []byte(script), 0755); err != nil {
+				logError("hook-update", err)
+				return err
 			}
 		}
 	}
