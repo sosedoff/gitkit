@@ -18,3 +18,37 @@ func Test_ReadHookInput(t *testing.T) {
 	assert.Equal(t, "heads", info.RefType)
 	assert.Equal(t, "master", info.RefName)
 }
+
+func Test_HookAction(t *testing.T) {
+	examples := map[string]HookInfo{
+		"branch.create": HookInfo{
+			OldRev:  "0000000000000000000000000000000000000000",
+			NewRev:  "e285100b636ac67fa28d85685072158edaa01685",
+			RefType: "heads",
+		},
+		"branch.delete": HookInfo{
+			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
+			NewRev:  "0000000000000000000000000000000000000000",
+			RefType: "heads",
+		},
+		"branch.push": HookInfo{
+			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
+			NewRev:  "a3d33576d686e7dc1d90ec4b1a6e94e760a893b2",
+			RefType: "heads",
+		},
+		"tag.create": HookInfo{
+			OldRev:  "0000000000000000000000000000000000000000",
+			NewRev:  "e285100b636ac67fa28d85685072158edaa01685",
+			RefType: "tags",
+		},
+		"tag.delete": HookInfo{
+			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
+			NewRev:  "0000000000000000000000000000000000000000",
+			RefType: "tags",
+		},
+	}
+
+	for expected, hook := range examples {
+		assert.Equal(t, expected, hook.Action())
+	}
+}

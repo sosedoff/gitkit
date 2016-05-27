@@ -28,8 +28,8 @@ func ReadCommitMessage(sha string) (string, error) {
 }
 
 func IsForcePush(hook *HookInfo) (bool, error) {
-	// New branch or tag
-	if hook.OldRev == ZeroSHA {
+	// New branch or tag OR deleted branch or tag
+	if hook.OldRev == ZeroSHA || hook.NewRev == ZeroSHA {
 		return false, nil
 	}
 

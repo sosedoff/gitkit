@@ -46,3 +46,20 @@ func ReadHookInput(input io.Reader) (*HookInfo, error) {
 
 	return &info, nil
 }
+
+func (h *HookInfo) Action() string {
+	action := "push"
+	context := "branch"
+
+	if h.RefType == "tags" {
+		context = "tag"
+	}
+
+	if h.OldRev == ZeroSHA && h.NewRev != ZeroSHA {
+		action = "create"
+	} else if h.OldRev != ZeroSHA && h.NewRev == ZeroSHA {
+		action = "delete"
+	}
+
+	return context + "." + action
+}
