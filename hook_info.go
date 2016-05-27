@@ -15,6 +15,8 @@ type HookInfo struct {
 	OldRev   string
 	NewRev   string
 	Ref      string
+	RefType  string
+	RefName  string
 }
 
 func ReadHookInput(input io.Reader) (*HookInfo, error) {
@@ -29,6 +31,7 @@ func ReadHookInput(input io.Reader) (*HookInfo, error) {
 	if len(chunks) != 3 {
 		return nil, fmt.Errorf("Invalid hook input")
 	}
+	refchunks := strings.Split(chunks[2], "/")
 
 	dir, _ := os.Getwd()
 	info := HookInfo{
@@ -37,6 +40,8 @@ func ReadHookInput(input io.Reader) (*HookInfo, error) {
 		OldRev:   chunks[0],
 		NewRev:   chunks[1],
 		Ref:      chunks[2],
+		RefType:  refchunks[1],
+		RefName:  refchunks[2],
 	}
 
 	return &info, nil
