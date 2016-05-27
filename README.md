@@ -245,6 +245,7 @@ package main
 import (
   "log"
   "os"
+  "fmt"
 
   "github.com/sosedoff/gitkit"
 )
@@ -256,11 +257,26 @@ func receive(hook *gitkit.HookInfo, tmpPath string) error {
   log.Println("Old revision:", hook.OldRev)
   log.Println("New revision:", hook.NewRev)
 
+  // Check if push is non fast-forward (force)
+  force, err := gitkit.IsForcePush(hook)
+  if err != nil {
+    return err
+  }
+
+  // Reject force push
+  if force {
+    return fmt.Errorf("non fast-forward pushed are not allowed")
+  }
+
   // Getting a commit message is built-in
   message, err := gitkit.ReadCommitMessage(hook.NewRev)
   if err != nil {
     return err
   }
+
+  // Checking on user action
+  // Returns one of: branch.push, branch.create, branch.delete, tag.create, tag.delete
+  action := hook.Action()
 
   log.Println("Message:", message)
   return nil
