@@ -9,4 +9,4 @@ all:
 
 setup:
 	go get github.com/mitchellh/gox
-	go get
+	go get -t
