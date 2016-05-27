@@ -224,6 +224,11 @@ func (s *SSH) setup() error {
 			if err != nil {
 				return nil, err
 			}
+
+			if pkey == nil {
+				return nil, fmt.Errorf("auth handler did not return a key")
+			}
+
 			return &ssh.Permissions{Extensions: map[string]string{"key-id": pkey.Id}}, nil
 		}
 	}
