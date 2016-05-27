@@ -11,6 +11,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+const ZeroSHA = "0000000000000000000000000000000000000000"
+
 type Receiver struct {
 	MasterOnly  bool
 	TmpDir      string
@@ -23,6 +25,23 @@ func ReadCommitMessage(sha string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(buff)), nil
+}
+
+func IsForcePush(hook *HookInfo) (bool, error) {
+	// New branch or tag
+	if hook.OldRev == ZeroSHA {
+		return false, nil
+	}
+
+	out, err := exec.Command("git", "merge-base", hook.OldRev, hook.NewRev).CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("git merge base failed: %s", out)
+	}
+
+	base := strings.TrimSpace(string(out))
+
+	// Non fast-forwared, meaning force
+	return base != hook.OldRev, nil
 }
 
 func (r *Receiver) Handle(reader io.Reader) error {
