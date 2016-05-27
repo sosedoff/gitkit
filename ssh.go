@@ -193,7 +193,7 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 }
 
 func (s *SSH) createServerKey() error {
-	if err := os.MkdirAll(s.config.KeyPath(), os.ModePerm); err != nil {
+	if err := os.MkdirAll(s.config.KeyDir, os.ModePerm); err != nil {
 		return err
 	}
 	out, err := exec.Command("ssh-keygen", "-f", s.config.KeyPath(), "-t", "rsa", "-N", "").CombinedOutput()
