@@ -17,7 +17,7 @@ import (
 )
 
 // Regular expression to match incoming git-over-ssh commands
-var gitCommandRegex = regexp.MustCompile(`^(git[-|\\s]upload-pack|git[-|\\s]upload-archive|git[-|\\s]receive-pack) '(.*)'$`)
+var gitCommandRegex = regexp.MustCompile(`^(git[-|\s]upload-pack|git[-|\s]upload-archive|git[-|\s]receive-pack) '(.*)'$`)
 
 type PublicKey struct {
 	Id          string
