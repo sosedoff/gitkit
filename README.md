@@ -327,13 +327,14 @@ $ git push
 
 ## Sources
 
-This code was based on the following sources:
+Gitkit contains samples of code ported from the following projects:
 
-- https://github.com/flynn/flynn/tree/master/gitreceive
-- https://gitlab.com/gitlab-org/gitlab-workhorse/tree/master/internal/git
-- https://github.com/gogits/gogs/blob/master/modules/ssh/ssh.go
+- [Flynn](https://github.com/flynn/flynn)
+- [Deis](https://github.com/deis/builder)
+- [Gitlab Workhorse](https://gitlab.com/gitlab-org/gitlab-workhorse)
+- [Gogs](https://github.com/gogits/gogs)
 
-Git HTTP protocol documentation:
+Git docs:
 
 - https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols
 
