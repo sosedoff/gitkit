@@ -13,6 +13,7 @@ type Config struct {
 	GitPath    string            // Path to git binary
 	GitUser    string            // User for ssh connections
 	AutoCreate bool              // Automatically create repostories
+	AutoHooks  bool              // Automatically setup git hooks
 	Hooks      map[string][]byte // Scripts for hooks/* directory
 	Auth       bool              // Require authentication
 }
@@ -28,6 +29,14 @@ func (c *Config) Setup() error {
 		}
 	}
 
+	if c.AutoHooks == true {
+		return c.setupHooks()
+	}
+
+	return nil
+}
+
+func (c *Config) setupHooks() error {
 	files, err := ioutil.ReadDir(c.Dir)
 	if err != nil {
 		return err

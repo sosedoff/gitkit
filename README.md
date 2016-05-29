@@ -23,6 +23,7 @@ func main() {
   service := gitkit.New(gitkit.Config{
     Dir:        "/path/to/repos",
     AutoCreate: true,
+    AutoHooks:  true,
     Hooks: map[string][]byte{
       "pre-receive": []byte(`echo "Hello World!"`),
     },
