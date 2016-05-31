@@ -350,7 +350,6 @@ If you're running on OSX, use `gsed` instead: `brew install gnu-sed`.
 Result:
 
 ```bash
-```
 # Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
 # Total 3 (delta 2), reused 0 (delta 0)
 Sample script output
