@@ -325,6 +325,37 @@ $ git push
 #    5ee8d08..e13d6b3  master -> master
 ```
 
+## Extras
+
+### Remove remote: prefix
+
+If your pre-receive script logs anything to STDOUT, the output might look
+like this:
+
+```bash
+# Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
+# Total 3 (delta 2), reused 0 (delta 0)
+remote: Sample script output <---- YOUR SCRIPT 
+```
+
+There's a simple hack to remove this nasty `remote:` prefix:
+
+```bash
+#!/bin/bash
+/my/receiver-script | sed -u "s/^/"$'\e[1G\e[K'"/"
+```
+
+If you're running on OSX, use `gsed` instead: `brew install gnu-sed`. 
+
+Result:
+
+```bash
+```
+# Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
+# Total 3 (delta 2), reused 0 (delta 0)
+Sample script output
+```
+
 ## Sources
 
 Gitkit contains samples of code ported from the following projects:
