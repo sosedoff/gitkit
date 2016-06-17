@@ -24,7 +24,7 @@ type service struct {
 type Server struct {
 	config   Config
 	services []service
-	AuthFunc func(Credential) (bool, error)
+	AuthFunc func(Credential, *Request) (bool, error)
 }
 
 type Request struct {
@@ -67,6 +67,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	repoName := strings.Split(r.URL.Path, "/")[1]
+	repoPath := path.Join(s.config.Dir, repoName)
+
+	req := &Request{
+		Request:  r,
+		RepoName: repoName,
+		RepoPath: repoPath,
+	}
+
 	if s.config.Auth {
 		if s.AuthFunc == nil {
 			logError("auth", fmt.Errorf("no auth backend provided"))
@@ -88,7 +97,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		allow, err := s.AuthFunc(cred)
+		allow, err := s.AuthFunc(cred, req)
 		if !allow || err != nil {
 			if err != nil {
 				logError("auth", err)
@@ -98,15 +107,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	}
-
-	repoName := strings.Split(r.URL.Path, "/")[1]
-	repoPath := path.Join(s.config.Dir, repoName)
-
-	req := &Request{
-		Request:  r,
-		RepoName: repoName,
-		RepoPath: repoPath,
 	}
 
 	if !repoExists(req.RepoPath) && s.config.AutoCreate == true {
