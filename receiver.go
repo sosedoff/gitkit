@@ -63,6 +63,9 @@ func (r *Receiver) Handle(reader io.Reader) error {
 	archiveCmd := fmt.Sprintf("git archive '%s' | tar -x -C '%s'", hook.NewRev, tmpDir)
 	buff, err := exec.Command("bash", "-c", archiveCmd).CombinedOutput()
 	if err != nil {
+		if len(buff) > 0 && strings.Contains(string(buff), "Damaged tar archive") {
+			return fmt.Errorf("Error: repository might be empty!")
+		}
 		return fmt.Errorf("cant archive repo: %s", buff)
 	}
 
