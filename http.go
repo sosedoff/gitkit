@@ -22,7 +22,7 @@ type service struct {
 }
 
 type Server struct {
-	config   Config
+	config   config
 	services []service
 	AuthFunc func(Credential, *Request) (bool, error)
 }
@@ -33,17 +33,41 @@ type Request struct {
 	RepoPath string
 }
 
-func New(cfg Config) *Server {
-	s := Server{config: cfg}
+func New(options ...func(*config)) *Server {
+
+	defaultConfig := config{
+		KeyDir:     "./",
+		Dir:        "./",
+		GitPath:    "git",
+		GitUser:    "git",
+		AutoCreate: true,
+		AutoHooks:  true,
+		Hooks:      nil,
+		Auth:       false,
+		EnableHTTP: true,
+		EnableSSH:  true,
+		UseTLS:     false,
+		TLSKey:     "",
+		TLSCert:    "",
+		AuthFunc:   nil,
+		PubKeyFunc: nil,
+		SSHKey:     "",
+		SSHPort:    2222,
+		HTTPPort:   8080,
+	}
+
+	for _, option := range options {
+		option(&defaultConfig)
+	}
+
+	s := Server{
+		config: defaultConfig,
+	}
+
 	s.services = []service{
 		service{"GET", "/info/refs", s.getInfoRefs, ""},
 		service{"POST", "/git-upload-pack", s.postRPC, "git-upload-pack"},
 		service{"POST", "/git-receive-pack", s.postRPC, "git-receive-pack"},
-	}
-
-	// Use PATH if full path is not specified
-	if s.config.GitPath == "" {
-		s.config.GitPath = "git"
 	}
 
 	return &s
@@ -216,7 +240,7 @@ func (s *Server) Setup() error {
 	return s.config.Setup()
 }
 
-func initRepo(name string, config *Config) error {
+func initRepo(name string, config *config) error {
 	p := path.Join(config.Dir, name)
 
 	if err := exec.Command(config.GitPath, "init", "--bare", p).Run(); err != nil {
