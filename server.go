@@ -64,6 +64,10 @@ func New(options ...func(*config)) CombinedServer {
 
 	if config.EnableHTTP {
 		server.HTTPserver = NewHTTP(config)
+		err := server.HTTPserver.Setup()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if config.EnableSSH {
 		server.SSHServer = NewSSH(config)
