@@ -2,6 +2,7 @@ package gitkit
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,32 +12,48 @@ import (
 // in via SSH.  The default function parses the `git` user's authorized_keys file.
 type PubKeyLookupFunc func(string) (*PublicKey, error)
 
-// AuthFunc should return true when presented an authorized user
-type AuthFunc func(Credential, *Request) (bool, error)
+// HTTPAuthFunc should return true when presented an authorized user
+type HTTPAuthFunc func(Credential, *Request) (bool, error)
+
+// SSHAuthFunc should return true when presented with an authorized user.  The
+// first argument is the keyID of the associated public key and the second
+// is the GitCommand
+type SSHAuthFunc func(string, *GitCommand) (bool, error)
+
+// Option is a functional option type used to configure the server
+type Option func(*config)
 
 type config struct {
-	KeyDir        string            // Directory for server ssh keys. Only used in SSH strategy.
-	Dir           string            // Directory that contains repositories
-	GitPath       string            // Path to git binary
-	GitUser       string            // User for ssh connections
-	AutoCreate    bool              // Automatically create repostories
-	AutoHooks     bool              // Automatically setup git hooks
-	Hooks         map[string][]byte // Scripts for hooks/* directory
-	Auth          bool              // Require authentication
-	EnableHTTP    bool              // Enable HTTP service
-	EnableSSH     bool              // Enable SSH service
-	TLSKey        string
-	TLSCert       string
-	AuthFunc      AuthFunc
-	SSHPubKeyFunc PubKeyLookupFunc
+	// Git configuration
+	GitPath      string            // Path to git binary
+	Dir          string            // Directory that contains repositories
+	AutoCreate   bool              // Automatically create repostories
+	AutoHooks    bool              // Automatically setup git hooks
+	Hooks        map[string][]byte // Scripts for hooks/* directory
+	UseNamespace bool
+
+	// HTTP server configuration
+	EnableHTTP   bool // Enable HTTP service
+	HTTPAuth     bool // Require authentication
+	TLSKey       string
+	TLSCert      string
+	HTTPAuthFunc HTTPAuthFunc
+	HTTPPort     int
+
+	// SSH server configuration
+	EnableSSH     bool   // Enable SSH service
+	KeyDir        string // Directory for server ssh keys. Only used in SSH strategy.
 	SSHKeyName    string
-	HTTPPort      int
+	GitUser       string // User for ssh connections
+	SSHAuth       bool
+	SSHAuthFunc   SSHAuthFunc
+	SSHPubKeyFunc PubKeyLookupFunc
 	SSHPort       int
 }
 
 // AutoCreate will automatically create a new repository on the first push
 // when set to true (default).
-func AutoCreate(flag bool) {
+func AutoCreate(flag bool) Option {
 	return func(c *config) {
 		c.AutoCreate = flag
 	}
@@ -45,7 +62,7 @@ func AutoCreate(flag bool) {
 // AddHooks will set hook scripts in all existing and new repositories. Pass
 // a map[string][]byte with the name of the hook as the key and the content
 // of the script as a []byte.
-func AddHooks(hooks ...map[string][]byte) {
+func AddHooks(hooks ...map[string][]byte) Option {
 	return func(c *config) {
 		c.AutoHooks = true
 		if c.Hooks == nil {
@@ -69,7 +86,7 @@ func AddHooks(hooks ...map[string][]byte) {
 // }
 // server := gitkit.New(hooks, otherOptions...)
 // ```
-func AddHooksFromFiles(hooks ...map[string]string) {
+func AddHooksFromFiles(hooks ...map[string]string) Option {
 	return func(c *config) {
 		c.AutoHooks = true
 		if c.Hooks == nil {
@@ -89,10 +106,10 @@ func AddHooksFromFiles(hooks ...map[string]string) {
 
 // UseRepoPath sets the full path from which to serve the git repositories.
 // Defaults to the current directory.
-func UseRepoPath(repoPath string) {
+func UseRepoPath(repoPath string) Option {
 	return func(c *config) {
 		if _, err := os.Stat(repoPath); err != nil || os.IsNotExist(err) {
-			log.Warn(fmt.Sprintf("Git repo path %s does not exist.  It will be created.\n", repoPath))
+			log.Printf("Git repo path %s does not exist.  It will be created.\n", repoPath)
 		}
 		c.Dir = repoPath
 	}
@@ -100,7 +117,7 @@ func UseRepoPath(repoPath string) {
 
 // UseHTTP will enable smart-HTTP services with a default configuration on port
 // 8080 when set to true (default).
-func UseHTTP(flag bool) {
+func UseHTTP(flag bool) Option {
 	return func(c *config) {
 		c.EnableHTTP = flag
 	}
@@ -108,7 +125,7 @@ func UseHTTP(flag bool) {
 
 // UseSSH will enable services over SSH with a default configuration on port
 // 2222 when set to true (default).
-func UseSSH(flag bool) {
+func UseSSH(flag bool) Option {
 	return func(c *config) {
 		c.EnableSSH = flag
 	}
@@ -116,7 +133,7 @@ func UseSSH(flag bool) {
 
 // SSHPort will set the port used to provide services over SSH.  Setting this value will
 // automatically enable SSH services.
-func SSHPort(port int) {
+func SSHPort(port int) Option {
 	return func(c *config) {
 		c.EnableSSH = true
 		c.SSHPort = port
@@ -125,7 +142,7 @@ func SSHPort(port int) {
 
 // HTTPPort will set the port used to provide HTTP services.  Settings this value
 // will automatically enable HTTP services.
-func HTTPPort(port int) {
+func HTTPPort(port int) Option {
 	return func(c *config) {
 		c.EnableHTTP = true
 		c.HTTPPort = port
@@ -133,27 +150,28 @@ func HTTPPort(port int) {
 }
 
 // UseSSHPubKeyFunc will set a custom lookup function for a user's public key.
-func UseSSHPubKeyFunc(fun PubKeyLookupFunc) {
+func UseSSHPubKeyFunc(fun PubKeyLookupFunc) Option {
 	return func(c *config) {
-		c.PubKeyFunc = fun
+		c.SSHPubKeyFunc = fun
 		c.EnableSSH = true
+		c.SSHAuth = true
 	}
 }
 
 // UseAuthFunc will set a custom authorization function for HTTP services.  The
 // default configuration contains no authorization.  Setting this value will
 // enable HTTP services and enforce authorization for all requests.
-func UseAuthFunc(fun AuthFunc) {
+func UseAuthFunc(fun HTTPAuthFunc) Option {
 	return func(c *config) {
-		c.Auth = true
+		c.HTTPAuth = true
 		c.EnableHTTP = true
-		c.AuthFunc = fun
+		c.HTTPAuthFunc = fun
 	}
 }
 
 // UseSSHKey will set the SSH server key.  If not provided, the default
 // configuration will generate a new key on starting the server.
-func UseSSHKey(dir string, name string) {
+func UseSSHKey(dir string, name string) Option {
 	_, err := os.Stat(filepath.Join(dir, name))
 	if err != nil || !os.IsExist(err) {
 		log.Fatal("SSH key does not exist at path provided.")
@@ -167,7 +185,7 @@ func UseSSHKey(dir string, name string) {
 
 // UseTLS will set the TLS key and cert paths to provide termination of smart-HTTP
 // services.
-func UseTLS(key string, cert string) {
+func UseTLS(key string, cert string) Option {
 	_, errKey := os.Stat(key)
 	_, errCert := os.Stat(cert)
 	if errKey != nil || !os.IsExist(errKey) {

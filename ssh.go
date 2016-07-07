@@ -28,30 +28,34 @@ type PublicKey struct {
 
 type SSH struct {
 	sshconfig           *ssh.ServerConfig
-	config              *Config
+	config              *config
 	PublicKeyLookupFunc func(string) (*PublicKey, error)
 }
 
 type GitCommand struct {
-	Command string
-	Repo    string
+	Namespace string
+	Command   string
+	Repo      string
 }
 
 func parseGitCommand(cmd string) (*GitCommand, error) {
+	log.Printf("Received git command: %s\n", cmd)
 	matches := gitCommandRegex.FindAllStringSubmatch(cmd, 1)
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("invalid git command")
 	}
-	return &GitCommand{matches[0][1], matches[0][2]}, nil
+	repoWithNamespace := matches[0][2]
+	splitRepo := strings.SplitAfter(repoWithNamespace, "/")
+	namespace := strings.Join(splitRepo[0:len(splitRepo)-1], "")
+	repo := splitRepo[len(splitRepo)-1]
+
+	return &GitCommand{namespace, matches[0][1], repo}, nil
 }
 
-func NewSSH(config Config) *SSH {
-	s := &SSH{config: &config}
+func NewSSH(config config) *SSH {
 
-	// Use PATH if full path is not specified
-	if s.config.GitPath == "" {
-		s.config.GitPath = "git"
-	}
+	s := &SSH{config: &config, PublicKeyLookupFunc: config.SSHPubKeyFunc}
+
 	return s
 }
 
@@ -102,6 +106,7 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 			defer ch.Close()
 
 			for req := range in {
+
 				payload := cleanCommand(string(req.Payload))
 
 				switch req.Type {
@@ -120,6 +125,7 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 						return
 					}
 				case "exec":
+					log.Printf("Received raw command: %s", payload)
 					cmdName := strings.TrimLeft(payload, "'()")
 					log.Printf("ssh: payload '%v'", cmdName)
 
@@ -134,7 +140,16 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 						return
 					}
 
-					if !repoExists(filepath.Join(s.config.Dir, gitcmd.Repo)) && s.config.AutoCreate == true {
+					if s.config.SSHAuthFunc != nil {
+						cmdAuthorized, err := s.config.SSHAuthFunc(keyID, gitcmd)
+						if !cmdAuthorized || err != nil {
+							log.Println("ssh: command not authorized")
+							ch.Write([]byte("The command is not authorized for this repository.\r\n"))
+							return
+						}
+					}
+					log.Printf("Action on repo: %s", gitcmd.Repo)
+					if !repoExists(filepath.Join(s.config.Dir, gitcmd.Repo)) && s.config.AutoCreate == true && gitcmd.Command == "git-receive-pack" {
 						err := initRepo(gitcmd.Repo, s.config)
 						if err != nil {
 							logError("repo-init", err)
@@ -143,7 +158,9 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 					}
 
 					cmd := exec.Command(gitcmd.Command, gitcmd.Repo)
-					cmd.Dir = s.config.Dir
+					log.Printf("SSH running in namespace: %s repo: %s\n ", gitcmd.Namespace, gitcmd.Repo)
+					cmd.Dir = filepath.Join(s.config.Dir, gitcmd.Namespace)
+					log.Printf("Changed dir to %s", cmd.Dir)
 					cmd.Env = append(os.Environ(), "GITKIT_KEY="+keyID)
 					// cmd.Env = append(os.Environ(), "SSH_ORIGINAL_COMMAND="+cmdName)
 
@@ -212,7 +229,7 @@ func (s *SSH) setup() error {
 		return fmt.Errorf("key directory is not provided")
 	}
 
-	if !s.config.Auth {
+	if !s.config.SSHAuth {
 		config.NoClientAuth = true
 	} else {
 		if s.PublicKeyLookupFunc == nil {
@@ -291,18 +308,18 @@ func (s *SSH) ListenAndServe(bind string) error {
 
 			log.Printf("ssh: connection from %s (%s)", sConn.RemoteAddr(), sConn.ClientVersion())
 
-			if s.config.Auth && s.config.GitUser != "" && sConn.User() != s.config.GitUser {
+			if s.config.SSHAuth && s.config.GitUser != "" && sConn.User() != s.config.GitUser {
 				sConn.Close()
 				return
 			}
 
-			keyId := ""
+			keyID := ""
 			if sConn.Permissions != nil {
-				keyId = sConn.Permissions.Extensions["key-id"]
+				keyID = sConn.Permissions.Extensions["key-id"]
 			}
 
 			go ssh.DiscardRequests(reqs)
-			go s.handleConnection(keyId, chans)
+			go s.handleConnection(keyID, chans)
 		}()
 	}
 }

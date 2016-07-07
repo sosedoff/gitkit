@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,35 +34,11 @@ type Request struct {
 	RepoPath string
 }
 
-func New(options ...func(*config)) *Server {
-
-	defaultConfig := config{
-		KeyDir:     "./",
-		Dir:        "./",
-		GitPath:    "git",
-		GitUser:    "git",
-		AutoCreate: true,
-		AutoHooks:  true,
-		Hooks:      nil,
-		Auth:       false,
-		EnableHTTP: true,
-		EnableSSH:  true,
-		UseTLS:     false,
-		TLSKey:     "",
-		TLSCert:    "",
-		AuthFunc:   nil,
-		PubKeyFunc: nil,
-		SSHKey:     "",
-		SSHPort:    2222,
-		HTTPPort:   8080,
-	}
-
-	for _, option := range options {
-		option(&defaultConfig)
-	}
+func NewHTTP(config config) *Server {
 
 	s := Server{
-		config: defaultConfig,
+		config:   config,
+		AuthFunc: config.HTTPAuthFunc,
 	}
 
 	s.services = []service{
@@ -91,16 +68,23 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repoName := strings.Split(r.URL.Path, "/")[1]
+	log.Printf("Receive path: %s", r.URL.Path)
+	var repoName string
+	if s.config.UseNamespace {
+		repoName = strings.Join(strings.Split(r.URL.Path, "/")[1:3], "/")
+		log.Printf("Namespaced repo: %s", repoName)
+	} else {
+		repoName = strings.Split(r.URL.Path, "/")[1]
+	}
 	repoPath := path.Join(s.config.Dir, repoName)
-
+	log.Printf("Repo path: %s", repoPath)
 	req := &Request{
 		Request:  r,
 		RepoName: repoName,
 		RepoPath: repoPath,
 	}
 
-	if s.config.Auth {
+	if s.config.HTTPAuth {
 		if s.AuthFunc == nil {
 			logError("auth", fmt.Errorf("no auth backend provided"))
 			w.WriteHeader(http.StatusUnauthorized)
