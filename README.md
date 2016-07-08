@@ -14,8 +14,6 @@ go get github.com/sosedoff/gitkit
 package main
 
 import (
-  "log"
-  "net/http"
   "github.com/sosedoff/gitkit"
 )
 
