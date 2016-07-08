@@ -74,10 +74,7 @@ package main
 
 import (
 	"crypto/subtle"
-	"fmt"
 	"github.com/BTBurke/gitkit"
-	"log"
-	"os"
 )
 
 func main() {
