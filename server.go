@@ -27,31 +27,34 @@ func New(options ...func(*config)) CombinedServer {
 		return &PublicKey{Id: "12345"}, nil
 	}
 
-	//localDir, _ := os.Getwd()
-
 	// start with sensible defaults and then apply user custom options
 	// to override defaults
 	config := config{
-		KeyDir:        ".keys",
-		Dir:           "./",
-		GitPath:       "git",
-		GitUser:       "git",
-		UseNamespace:  true,
-		AutoCreate:    true,
-		AutoHooks:     true,
-		Hooks:         nil,
-		HTTPAuth:      false,
-		SSHAuth:       true,
-		EnableHTTP:    true,
+		// Git configuration
+		GitPath:      "git",
+		Dir:          "./",
+		AutoCreate:   true,
+		AutoHooks:    false,
+		Hooks:        nil,
+		UseNamespace: false,
+
+		// HTTP server configuration
+		EnableHTTP:   true,
+		HTTPAuth:     false,
+		TLSKey:       "",
+		TLSCert:      "",
+		HTTPAuthFunc: nil,
+		HTTPPort:     8080,
+
+		// SSH server configuration
 		EnableSSH:     true,
-		TLSKey:        "",
-		TLSCert:       "",
-		HTTPAuthFunc:  nil,
+		KeyDir:        ".keys",
+		SSHKeyName:    "gitkit",
+		GitUser:       "git",
+		SSHAuth:       true,
 		SSHAuthFunc:   nil,
 		SSHPubKeyFunc: defaultNoAuthKeyLookup,
-		SSHKeyName:    "gitkit",
 		SSHPort:       2222,
-		HTTPPort:      8080,
 	}
 
 	for _, option := range options {

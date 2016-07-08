@@ -51,11 +51,52 @@ type config struct {
 	SSHPort       int
 }
 
-// AutoCreate will automatically create a new repository on the first push
+// EnableAutoCreate will automatically create a new repository on the first push
 // when set to true (default).
-func AutoCreate(flag bool) Option {
+func EnableAutoCreate(flag bool) Option {
 	return func(c *config) {
 		c.AutoCreate = flag
+	}
+}
+
+// SetGitPath sets the path to the git binary.  Defaults to `git` Assuming
+// the git binary is in your $PATH
+func SetGitPath(path string) Option {
+	return func(c *config) {
+		_, err := os.Stat(path)
+		if err != nil || os.IsNotExist(err) {
+			log.Fatal("Git binary does not exist at path provided.")
+		}
+	}
+}
+
+// UseNamespace allows Github-style namespaced repositories like user/repo.git.
+// Namespaces are only allowed one level deep.  When set to false, repos are
+// stored at the top level of the repository directory with no namespacing.
+func UseNamespace(flag bool) Option {
+	return func(c *config) {
+		c.UseNamespace = flag
+	}
+}
+
+// SetGitUser sets the allowed user when connecting via SSH.  Defaults to `git`.
+func SetGitUser(user string) Option {
+	return func(c *config) {
+		c.GitUser = user
+	}
+}
+
+// UseSSHAuthFunc will set a custom authorization function for SSH services.  The
+// default configuration contains no authorization.  This function is called
+// after the connection is accepted, but before any changes to the repository
+// are allowed.  The SSHAuthFunc receives the KeyID associated with the logged
+// in user and the GitCommand that will be run.  Setting this value will
+// enable SSH services and enforce authorization for all requests.
+func UseSSHAuthFunc(fun SSHAuthFunc) Option {
+	return func(c *config) {
+		c.SSHAuth = true
+		c.EnableSSH = true
+		c.SSHAuthFunc = fun
 	}
 }
 
@@ -104,9 +145,9 @@ func AddHooksFromFiles(hooks ...map[string]string) Option {
 	}
 }
 
-// UseRepoPath sets the full path from which to serve the git repositories.
+// SetRepoPath sets the full path from which to serve the git repositories.
 // Defaults to the current directory.
-func UseRepoPath(repoPath string) Option {
+func SetRepoPath(repoPath string) Option {
 	return func(c *config) {
 		if _, err := os.Stat(repoPath); err != nil || os.IsNotExist(err) {
 			log.Printf("Git repo path %s does not exist.  It will be created.\n", repoPath)
@@ -115,17 +156,17 @@ func UseRepoPath(repoPath string) Option {
 	}
 }
 
-// UseHTTP will enable smart-HTTP services with a default configuration on port
+// EnableHTTP will enable smart-HTTP services with a default configuration on port
 // 8080 when set to true (default).
-func UseHTTP(flag bool) Option {
+func EnableHTTP(flag bool) Option {
 	return func(c *config) {
 		c.EnableHTTP = flag
 	}
 }
 
-// UseSSH will enable services over SSH with a default configuration on port
+// EnableSSH will enable services over SSH with a default configuration on port
 // 2222 when set to true (default).
-func UseSSH(flag bool) Option {
+func EnableSSH(flag bool) Option {
 	return func(c *config) {
 		c.EnableSSH = flag
 	}
@@ -158,10 +199,10 @@ func UseSSHPubKeyFunc(fun PubKeyLookupFunc) Option {
 	}
 }
 
-// UseAuthFunc will set a custom authorization function for HTTP services.  The
+// UseHTTPAuthFunc will set a custom authorization function for HTTP services.  The
 // default configuration contains no authorization.  Setting this value will
 // enable HTTP services and enforce authorization for all requests.
-func UseAuthFunc(fun HTTPAuthFunc) Option {
+func UseHTTPAuthFunc(fun HTTPAuthFunc) Option {
 	return func(c *config) {
 		c.HTTPAuth = true
 		c.EnableHTTP = true
@@ -185,7 +226,7 @@ func UseSSHKey(dir string, name string) Option {
 
 // UseTLS will set the TLS key and cert paths to provide termination of smart-HTTP
 // services.
-func UseTLS(key string, cert string) Option {
+func UseTLS(cert string, key string) Option {
 	_, errKey := os.Stat(key)
 	_, errCert := os.Stat(cert)
 	if errKey != nil || !os.IsExist(errKey) {

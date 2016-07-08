@@ -19,7 +19,7 @@ func main() {
 		return subtle.ConstantTimeCompare(myPasswords[c.Username], []byte(c.Password)) == 1, nil
 	}
 
-	auth := gitkit.UseAuthFunc(myAuthFunc)
+	auth := gitkit.UseHTTPAuthFunc(myAuthFunc)
 	server := gitkit.New(auth)
 	server.Run()
 }
