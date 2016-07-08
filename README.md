@@ -141,30 +141,30 @@ The default configuration is:
 ```go
 config{
   // Git configuration
-  GitPath:      "git",          // Path to git binary
-  Dir:          "./",           // Repository top-level directory
-  AutoCreate:   true,           // Auto create repository on first push
-  AutoHooks:    false,          // Install git hooks automatically in all repos
-  Hooks:        nil,            // Hooks to install in each repository
-  UseNamespace: false,          // Namespaced respositories like BTBurke/gitkit  
+  GitPath:      "git",          // Path to git binary (default: git on $PATH)
+  Dir:          "./",           // Repository top-level directory (default: current directory)
+  AutoCreate:   true,           // Auto create repository on first push (default: true)
+  AutoHooks:    false,          // Install git hooks automatically in all repos (default: false)
+  Hooks:        nil,            // Hooks to install in each repository (default: none)
+  UseNamespace: false,          // Namespaced respositories like BTBurke/gitkit (default: no namespace)
 
   // HTTP server configuration
-  EnableHTTP:   true,           // Enable the smart HTTP server
-  HTTPAuth:     false,          // Enforce HTTP authorization
-  TLSKey:       "",             // Server TLS key
-  TLSCert:      "",             // Server TLS cert
-  HTTPAuthFunc: nil,            // Function to use for HTTP authorization
-  HTTPPort:     8080,           // HTTP service port
+  EnableHTTP:   true,           // Enable the smart HTTP server (default: running)
+  HTTPAuth:     false,          // Enforce HTTP authorization (default: no auth)
+  TLSKey:       "",             // Server TLS key (default: no TLS)
+  TLSCert:      "",             // Server TLS cert (default: no TLS)
+  HTTPAuthFunc: nil,            // Function to use for HTTP authorization (default: no auth)
+  HTTPPort:     8080,           // HTTP service port (default: 8080)
 
   // SSH server configuration
-  EnableSSH:     true,          // Enable the SSH server
-  KeyDir:        ".keys",       // Directory to store the server keys
-  SSHKeyName:    "gitkit",      // Name of the server keys
-  GitUser:       "git",         // User allowed to log in via SSH (git@yourserver:test/test.git)
-  SSHAuth:       true,          // Enforce SSH authorization
-  SSHAuthFunc:   nil,           // Authorization function called before any git changes made
-  SSHPubKeyFunc: defaultNoAuthKeyLookup, // Insecure default auth that allows anyone in
-  SSHPort:       2222,          // SSH service port
+  EnableSSH:     true,          // Enable the SSH server (default: running)
+  KeyDir:        ".keys",       // Directory to store the server keys (default: .keys)
+  SSHKeyName:    "gitkit",      // Name of the server keys (default: gitkit)
+  GitUser:       "git",         // User allowed to log in via SSH (default: git@yourserver)
+  SSHAuth:       true,          // Enforce SSH authorization (default: insecure auth)
+  SSHAuthFunc:   nil,           // Authorization function called before any git changes made (default: no auth)
+  SSHPubKeyFunc: defaultNoAuthKeyLookup, // Function to lookup user's public key (default: insecure auth)
+  SSHPort:       2222,          // SSH service port (default: 2222)
 }
 ```
 
