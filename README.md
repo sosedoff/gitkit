@@ -26,7 +26,7 @@ func main() {
 ```
 This will start a Smart HTTP server on port 8080 and an SSH server on port 2222 with the default configuration.  
 
-**Warning!** The defaults are insecure, so take a look at the configuration section below and the examples/ directory for advice on setting up a secure service.
+**Warning!** The defaults are insecure, so take a look at the configuration section below and the `examples/` directory for advice on setting up a secure service.
 
 Run example:
 
@@ -127,7 +127,7 @@ for more information.
 
 ## Configuration
 
-Gitkit has a lot of options to configure the servers the way you want.  See the godoc and the examples/ directory for information on configuring authorization, TLS, git hooks, and more.
+Gitkit has a lot of options to configure the servers the way you want.  See the godoc and the `examples/` directory for information on configuring authorization, TLS, git hooks, and more.
 
 To pass a custom configuration, you only need to pass options that you want to change from their default values:
 
