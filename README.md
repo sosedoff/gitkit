@@ -8,7 +8,7 @@ Toolkit to build Git workflows with Go
 go get github.com/sosedoff/gitkit
 ```
 
-## Smart HTTP Server
+## Smart HTTP and SSH Server
 
 ```go
 package main
@@ -20,25 +20,13 @@ import (
 )
 
 func main() {
-  service := gitkit.New(gitkit.Config{
-    Dir:        "/path/to/repos",
-    AutoCreate: true,
-    AutoHooks:  true,
-    Hooks: map[string][]byte{
-      "pre-receive": []byte(`echo "Hello World!"`),
-    },
-  })
-
-  // Configure git server. Will create git repos path if it does not exist.
-  // If hooks are set, it will also update all repos with new version of hook scripts.
-  if err := service.Setup(); err != nil {
-    log.Fatal(err)
-  }
-
-  http.Handle("/", service)
-  http.ListenAndServe(":5000", nil)
+  service := gitkit.New()
+  service.Run()
 }
 ```
+This will start a Smart HTTP server on port 8080 and an SSH server on port 2222 with the default configuration.  
+
+**Warning!** The defaults are insecure, so take a look at the configuration section below and the examples/ directory for advice on setting up a secure service.
 
 Run example:
 
@@ -46,90 +34,77 @@ Run example:
 go run example.go
 ```
 
-Then try to clone a test repository:
+Then try to create a test repository:
 
 ```bash
-$ git clone http://localhost:5000/test.git /tmp/test
-# Cloning into '/tmp/test'...
-# warning: You appear to have cloned an empty repository.
-# Checking connectivity... done.
-
 $ cd /tmp/test
 $ touch sample
-
+$ git init
 $ git add sample
 $ git commit -am "First commit"
 # [master (root-commit) fe40c98] First commit
 # 1 file changed, 0 insertions(+), 0 deletions(-)
 # create mode 100644 sample
 
+$ git remote add origin http://localhost:8080/test.git
 $ git push origin master
 # Counting objects: 3, done.
 # Writing objects: 100% (3/3), 213 bytes | 0 bytes/s, done.
 # Total 3 (delta 0), reused 0 (delta 0)
-# remote: Hello World! <----------------- pre-receive hook
-# To http://localhost:5000/test.git
+# To http://localhost:8080/test.git
 # * [new branch]      master -> master
 ```
 
-In the example's console you'll see something like this:
+You can also try cloning via SSH.
 
-```bash
-2016/05/20 20:01:42 request: GET localhost:5000/test.git/info/refs?service=git-upload-pack
-2016/05/20 20:01:42 repo-init: creating pre-receive hook for test.git
-2016/05/20 20:03:34 request: GET localhost:5000/test.git/info/refs?service=git-receive-pack
-2016/05/20 20:03:34 request: POST localhost:5000/test.git/git-receive-pack
+First put the following lines in your `~/.ssh/config` since the SSH server runs on a non-standard port:
+
+```
+Host localhost
+  Port 2222
 ```
 
-### Authentication
+```bash
+$ cd /tmp
+$ git clone git@127.0.0.1:test.git test2
+```
+
+### HTTP Authentication
 
 ```go
 package main
 
 import (
-  "log"
-  "net/http"
-
-  "github.com/sosedoff/gitkit"
+	"crypto/subtle"
+	"fmt"
+	"github.com/BTBurke/gitkit"
+	"log"
+	"os"
 )
 
 func main() {
-  service := gitkit.New(gitkit.Config{
-    Dir:        "/path/to/repos",
-    AutoCreate: true,
-    Auth:       true, // Turned off by default
-  })
 
-  // Here's the user-defined authentication function.
-  // If return value is false or error is set, user's request will be rejected.
-  // You can hook up your database/redis/cache for authentication purposes.
-  service.AuthFunc = func(cred gitkit.Credential, req *gitkit.Request) (bool, error) {
-    log.Println("user auth request for repo:", cred.Username, cred.Password, req.RepoName)
-    return cred.Username == "hello", nil
-  }
+  // A custom authorization function
+	myAuthFunc := func(c gitkit.Credential, r *gitkit.Request) (bool, error) {
+		myPasswords := map[string][]byte{
+			"hello": []byte("reallylongpassword"),
+		}
+		return subtle.ConstantTimeCompare(myPasswords[c.Username], []byte(c.Password)) == 1, nil
+	}
 
-  http.Handle("/", service)
-  http.ListenAndServe(":5000", nil)
+	auth := gitkit.UseHTTPAuthFunc(myAuthFunc)
+	server := gitkit.New(auth)
+	server.Run()
 }
 ```
 
-When you start the server and try to clone repo, you'll see password prompt. Two
-examples below illustrate both failed and succesful authentication based on the
-auth code above.
+When you start the server and try to clone repo, you'll see password prompt.
 
 ```bash
-$ git clone http://localhost:5000/awesome-sauce.git
+$ git clone http://localhost:8080/awesome-sauce.git
 # Cloning into 'awesome-sauce'...
-# Username for 'http://localhost:5000': foo
-# Password for 'http://foo@localhost:5000':
-# fatal: Authentication failed for 'http://localhost:5000/awesome-sauce.git/'
-
-$ git clone http://localhost:5000/awesome-sauce.git
-# Cloning into 'awesome-sauce'...
-# Username for 'http://localhost:5000': hello
-# Password for 'http://hello@localhost:5000':
-# warning: You appear to have cloned an empty repository.
-# Checking connectivity... done.
+# Username for 'http://localhost:8080': hello
+# Password for 'http://hello@localhost:8080':
 ```
 
 Git also allows using `.netrc` files for authentication purposes. Open your `~/.netrc`
@@ -138,7 +113,11 @@ file and add the following line:
 ```
 machine localhost
   login hello
-  password world
+  password reallylongpassword
+```
+or you can pass the username and password in the url like so:
+```
+$ git clone http://hello:reallylongpassword@127.0.0.1:8080/awesome-sauce.git
 ```
 
 Next time you try clone the same localhost git repo, git wont show password promt.
@@ -146,98 +125,59 @@ Keep in mind that the best practice is to use auth tokens instead of plaintext p
 for authentication. See [Heroku's docs](https://devcenter.heroku.com/articles/authentication#api-token-storage)
 for more information.
 
-## SSH server
+## Configuration
+
+Gitkit has a lot of options to configure the servers the way you want.  See the godoc and the examples/ directory for information on configuring authorization, TLS, git hooks, and more.
+
+To pass a custom configuration, you only need to pass options that you want to change from their default values:
 
 ```go
-package main
+auth := gitkit.UseHTTPAuthFunc(myAuthFunc)
+port := gitkit.HTTPPort(5000)
+nossh := gitkit.EnableSSH(false)
 
-import (
-  "log"
-  "github.com/sosedoff/gitkit"
-)
+server := gitkit.New(auth, port, nossh)
+server.Run()
+```
+In the example above, a HTTP authorization function named `myAuthFunc` is added, the port is changed to 5000, and the SSH server is disabled.  The rest of the default configuration options are unchanged.
 
-// User-defined key lookup function. You can make a call to a database or
-// some sort of cache storage (redis/memcached) to speed things up.
-// Content is a string containing ssh public key of a user.
-func lookupKey(content string) (*gitkit.PublicKey, error) {
-  return &gitkit.PublicKey{Id: "12345"}, nil
+The default configuration is:
+
+```go
+config{
+  // Git configuration
+  GitPath:      "git",          // Path to git binary
+  Dir:          "./",           // Repository top-level directory
+  AutoCreate:   true,           // Auto create repository on first push
+  AutoHooks:    false,          // Install git hooks automatically in all repos
+  Hooks:        nil,            // Hooks to install in each repository
+  UseNamespace: false,          // Namespaced respositories like BTBurke/gitkit  
+
+  // HTTP server configuration
+  EnableHTTP:   true,           // Enable the smart HTTP server
+  HTTPAuth:     false,          // Enforce HTTP authorization
+  TLSKey:       "",             // Server TLS key
+  TLSCert:      "",             // Server TLS cert
+  HTTPAuthFunc: nil,            // Function to use for HTTP authorization
+  HTTPPort:     8080,           // HTTP service port
+
+  // SSH server configuration
+  EnableSSH:     true,          // Enable the SSH server
+  KeyDir:        ".keys",       // Directory to store the server keys
+  SSHKeyName:    "gitkit",      // Name of the server keys
+  GitUser:       "git",         // User allowed to log in via SSH (git@yourserver:test/test.git)
+  SSHAuth:       true,          // Enforce SSH authorization
+  SSHAuthFunc:   nil,           // Authorization function called before any git changes made
+  SSHPubKeyFunc: defaultNoAuthKeyLookup, // Insecure default auth that allows anyone in
+  SSHPort:       2222,          // SSH service port
 }
-
-func main() {
-  // In the example below you need to specify a full path to a directory that
-  // contains all git repositories, and also a directory that has a gitkit specific
-  // ssh private and public key pair that used to run ssh server.
-  server := gitkit.NewSSH(gitkit.Config{
-    Dir:    "/path/to/git/repos",
-    KeyDir: "/path/to/gitkit",
-  })
-
-  // User-defined key lookup function. All requests will be rejected if this function
-  // is not provider. SSH server only accepts key-based authentication.
-  server.PublicKeyLookupFunc = lookupKey
-
-  // Specify host and port to run the server on.
-  err := server.ListenAndServe(":2222")
-  if err != nil {
-    log.Fatal(err)
-  }
-}
 ```
 
-Example above uses non-standard SSH port 2222, which can't be used for local testing
-by default. To make it work you must modify you ssh client configuration file with
-the following snippet:
-
-```
-$ nano ~/.ssh/config
-```
-
-Paste the following:
-
-```
-Host localhost
-  Port 2222
-```
-
-Now that the server is configured, we can fire it up:
-
-```bash
-$ go run ssh_server.go
-```
-
-First thing you'll need to make sure you have tested the ssh host verification:
-
-```bash
-$ ssh git@localhost -p 2222
-# The authenticity of host '[localhost]:2222 ([::1]:2222)' can't be established.
-# RSA key fingerprint is SHA256:eZwC9VSbVnoHFRY9QKGK3aBSUqkShRF0HxFmQyLmBJs.
-# Are you sure you want to continue connecting (yes/no)? yes
-# Warning: Permanently added '[localhost]:2222' (RSA) to the list of known hosts.
-# Unsupported request type.
-# Connection to localhost closed.
-```
-
-All good now. `Unsupported request type.` is a succes output since gitkit does not
-allow running shell sessions. Assuming you have configured the directory for git
-repositories, clone the test repo:
-
-```bash
-$ git clone git@localhost:test.git
-# Cloning into 'test'...
-# remote: Counting objects: 3, done.
-# remote: Total 3 (delta 0), reused 0 (delta 0)
-# Receiving objects: 100% (3/3), done.
-# Checking connectivity... done.
-```
-
-Done, you have now ability to run git push/pull. The important stuff in all examples
-above is `lookupKey` function. It controls whether user is allowd to authenticate with
-ssh or not.
 
 ## Receiver
 
-In Git, The first script to run when handling a push from a client is pre-receive. 
-It takes a list of references that are being pushed from stdin; if it exits non-zero, 
+In Git, The first script to run when handling a push from a client is pre-receive.
+It takes a list of references that are being pushed from stdin; if it exits non-zero,
 none of them are accepted. [More on hooks](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks).
 
 ```go
@@ -335,7 +275,7 @@ like this:
 ```bash
 # Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
 # Total 3 (delta 2), reused 0 (delta 0)
-remote: Sample script output <---- YOUR SCRIPT 
+remote: Sample script output <---- YOUR SCRIPT
 ```
 
 There's a simple hack to remove this nasty `remote:` prefix:
@@ -345,7 +285,7 @@ There's a simple hack to remove this nasty `remote:` prefix:
 /my/receiver-script | sed -u "s/^/"$'\e[1G\e[K'"/"
 ```
 
-If you're running on OSX, use `gsed` instead: `brew install gnu-sed`. 
+If you're running on OSX, use `gsed` instead: `brew install gnu-sed`.
 
 Result:
 
