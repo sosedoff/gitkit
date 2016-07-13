@@ -1,6 +1,8 @@
 # gitkit
 
-Toolkit to build Git workflows with Go
+Toolkit to build Git push workflows with Go
+
+**This project is under active development, things might break and change**
 
 ## Install
 
