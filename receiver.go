@@ -55,7 +55,7 @@ func (r *Receiver) Handle(reader io.Reader) error {
 	}
 
 	tmpDir := path.Join(r.TmpDir, uuid.NewV4().String())
-	if err := os.Mkdir(tmpDir, 0774); err != nil {
+	if err := os.MkdirAll(tmpDir, 0774); err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmpDir)
