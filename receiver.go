@@ -14,6 +14,7 @@ import (
 const ZeroSHA = "0000000000000000000000000000000000000000"
 
 type Receiver struct {
+	Debug       bool
 	MasterOnly  bool
 	TmpDir      string
 	HandlerFunc func(*HookInfo, string) error
@@ -58,7 +59,11 @@ func (r *Receiver) Handle(reader io.Reader) error {
 	if err := os.MkdirAll(tmpDir, 0774); err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir)
+
+	// Cleanup temp directory unless we're in debug mode
+	if !r.Debug {
+		defer os.RemoveAll(tmpDir)
+	}
 
 	archiveCmd := fmt.Sprintf("git archive '%s' | tar -x -C '%s'", hook.NewRev, tmpDir)
 	buff, err := exec.Command("bash", "-c", archiveCmd).CombinedOutput()
