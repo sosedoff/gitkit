@@ -17,14 +17,14 @@ func Test_parseGitCommand(t *testing.T) {
 	}
 
 	for s, expected := range examples {
-		cmd, err := parseGitCommand(s)
+		cmd, err := ParseGitCommand(s)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected.Command, cmd.Command)
 		assert.Equal(t, expected.Repo, cmd.Repo)
 	}
 
-	cmd, err := parseGitCommand("git do-stuff")
+	cmd, err := ParseGitCommand("git do-stuff")
 	assert.Error(t, err)
 	assert.Nil(t, cmd)
 }

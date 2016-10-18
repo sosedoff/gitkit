@@ -10,14 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
-
-// Regular expression to match incoming git-over-ssh commands
-var gitCommandRegex = regexp.MustCompile(`^(git[-|\s]upload-pack|git[-|\s]upload-archive|git[-|\s]receive-pack) '(.*)'$`)
 
 type PublicKey struct {
 	Id          string
@@ -30,19 +26,6 @@ type SSH struct {
 	sshconfig           *ssh.ServerConfig
 	config              *Config
 	PublicKeyLookupFunc func(string) (*PublicKey, error)
-}
-
-type GitCommand struct {
-	Command string
-	Repo    string
-}
-
-func parseGitCommand(cmd string) (*GitCommand, error) {
-	matches := gitCommandRegex.FindAllStringSubmatch(cmd, 1)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("invalid git command")
-	}
-	return &GitCommand{matches[0][1], matches[0][2]}, nil
 }
 
 func NewSSH(config Config) *SSH {
@@ -127,7 +110,7 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 						cmdName = strings.Replace(cmdName, "\x00", "", -1)[1:]
 					}
 
-					gitcmd, err := parseGitCommand(cmdName)
+					gitcmd, err := ParseGitCommand(cmdName)
 					if err != nil {
 						log.Println("ssh: error parsing command:", err)
 						ch.Write([]byte("Invalid command.\r\n"))
