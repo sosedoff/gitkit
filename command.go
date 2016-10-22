@@ -8,9 +8,9 @@ import (
 var gitCommandRegex = regexp.MustCompile(`^(git[-|\s]upload-pack|git[-|\s]upload-archive|git[-|\s]receive-pack) '(.*)'$`)
 
 type GitCommand struct {
-	Original string
 	Command  string
 	Repo     string
+	Original string
 }
 
 func ParseGitCommand(cmd string) (*GitCommand, error) {
