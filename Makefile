@@ -1,5 +1,5 @@
 test:
-	godep go test -v -cover .
+	godep go test -v -race -cover .
 
 build:
 	godep go build
