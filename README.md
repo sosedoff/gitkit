@@ -4,6 +4,8 @@ Toolkit to build Git push workflows with Go
 
 **This project is under active development, things might break and change**
 
+[![GoDoc](https://godoc.org/github.com/sosedoff/gitkit?status.svg)](https://godoc.org/github.com/sosedoff/gitkit)
+
 ## Install
 
 ```bash
