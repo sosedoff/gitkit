@@ -1,9 +1,8 @@
 package gitkit
 
 import (
-	"encoding/base64"
 	"fmt"
-	"strings"
+	"net/http"
 )
 
 type Credential struct {
@@ -11,21 +10,16 @@ type Credential struct {
 	Password string
 }
 
-func parseAuth(data string) (Credential, error) {
+func getAuth(req *http.Request) (Credential, error) {
 	cred := Credential{}
 
-	if !strings.HasPrefix(data, "Basic ") {
-		return cred, fmt.Errorf("not a basic authentication")
+	user, pass, ok := req.BasicAuth()
+	if !ok {
+		return cred, fmt.Errorf("authentication failed")
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(strings.Replace(data, "Basic ", "", 1))
-	if err != nil {
-		return cred, err
-	}
-
-	chunks := strings.Split(string(decoded), ":")
-	cred.Username = chunks[0]
-	cred.Password = chunks[1]
+	cred.Username = user
+	cred.Password = pass
 
 	return cred, nil
 }

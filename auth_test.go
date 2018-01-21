@@ -1,35 +1,23 @@
 package gitkit
 
 import (
-	"strings"
+	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_parseAuth(t *testing.T) {
-	_, err := parseAuth("foobar")
-	if err == nil {
-		t.Error("Expected error, got no error")
-	}
-	if err.Error() != "not a basic authentication" {
-		t.Errorf("Expected error message, got: %s", err.Error())
-	}
+func Test_getAuth(t *testing.T) {
+	req, _ := http.NewRequest("get", "http://localhost", nil)
+	_, err := getAuth(req)
+	assert.Error(t, err)
+	assert.Equal(t, "authentication failed", err.Error())
 
-	_, err = parseAuth("Basic qwe123")
-	if err == nil {
-		t.Error("Expected error, got no error")
-	}
-	if !strings.Contains(err.Error(), "illegal base64 data") {
-		t.Errorf("Expected base64 decode error, got: %s", err.Error())
-	}
+	req, _ = http.NewRequest("get", "http://localhost", nil)
+	req.SetBasicAuth("Alladin", "OpenSesame")
+	cred, err := getAuth(req)
 
-	cred, err := parseAuth("Basic QWxhZGRpbjpPcGVuU2VzYW1l")
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if cred.Username != "Aladdin" {
-		t.Fatalf("Got username: %s", cred.Username)
-	}
-	if cred.Password != "OpenSesame" {
-		t.Fatalf("Got username: %s", cred.Password)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "Alladin", cred.Username)
+	assert.Equal(t, "OpenSesame", cred.Password)
 }
