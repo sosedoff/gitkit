@@ -374,4 +374,6 @@ Git docs:
 
 ## License
 
-MIT
+The MIT License (MIT). See [LICENSE](LICENSE) file for more details.
+
+Copyright (c) 2016-2018 Dan Sosedoff, <dan.sosedoff@gmail.com>
