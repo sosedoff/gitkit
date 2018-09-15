@@ -2,6 +2,10 @@ package gitkit
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -179,11 +183,33 @@ func (s *SSH) createServerKey() error {
 	if err := os.MkdirAll(s.config.KeyDir, os.ModePerm); err != nil {
 		return err
 	}
-	out, err := exec.Command("ssh-keygen", "-f", s.config.KeyPath(), "-t", "rsa", "-N", "", "-m", "PEM").CombinedOutput()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return fmt.Errorf("key creating failed: %s", out)
+		return err
 	}
-	return nil
+
+	privateKeyFile, err := os.Create(s.config.KeyPath())
+	fmt.Println(err)
+	if err := os.Chmod(s.config.KeyPath(), 0600); err != nil {
+		return err
+	}
+	defer privateKeyFile.Close()
+	if err != nil {
+		return err
+	}
+	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
+	if err := pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
+		return err
+	}
+
+	pubKeyPath := s.config.KeyPath() + ".pub"
+	fmt.Println(pubKeyPath)
+	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(pubKeyPath, ssh.MarshalAuthorizedKey(pub), 0644)
 }
 
 func (s *SSH) setup() error {
