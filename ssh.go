@@ -179,7 +179,7 @@ func (s *SSH) createServerKey() error {
 	if err := os.MkdirAll(s.config.KeyDir, os.ModePerm); err != nil {
 		return err
 	}
-	out, err := exec.Command("ssh-keygen", "-f", s.config.KeyPath(), "-t", "rsa", "-N", "").CombinedOutput()
+	out, err := exec.Command("ssh-keygen", "-f", s.config.KeyPath(), "-t", "rsa", "-N", "", "-m", "PEM").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("key creating failed: %s", out)
 	}
