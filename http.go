@@ -90,7 +90,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		cred, err := getAuth(r)
+		cred, err := getCredential(r)
 		if err != nil {
 			logError("auth", err)
 			w.WriteHeader(http.StatusUnauthorized)

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_parseGitCommand(t *testing.T) {
+func TestParseGitCommand(t *testing.T) {
 	examples := map[string]GitCommand{
 		"git-upload-pack 'hello.git'":    GitCommand{"git-upload-pack", "hello.git", "git-upload-pack 'hello.git'"},
 		"git upload-pack 'hello.git'":    GitCommand{"git upload-pack", "hello.git", "git upload-pack 'hello.git'"},

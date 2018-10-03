@@ -10,7 +10,7 @@ type Credential struct {
 	Password string
 }
 
-func getAuth(req *http.Request) (Credential, error) {
+func getCredential(req *http.Request) (Credential, error) {
 	cred := Credential{}
 
 	user, pass, ok := req.BasicAuth()
