@@ -59,3 +59,26 @@ func Test_packLine(t *testing.T) {
 		}
 	}
 }
+
+func Test_getNamespaceAndRepo(t *testing.T) {
+	cases := map[string][]string{
+		"":                  {"", ""},
+		"/":                 {"", ""},
+		"///":               {"", ""},
+		"/repo":             {"", "repo"},
+		"/org/repo":         {"org", "repo"},
+		"/org/suborg/repo":  {"org/suborg", "repo"},
+		"//org//org///repo": {"org/org", "repo"},
+	}
+
+	for example, expected := range cases {
+		namespace, repo := getNamespaceAndRepo(example)
+
+		if namespace != expected[0] {
+			t.Errorf("Expected %v namespace, got: %v", expected[0], namespace)
+		}
+		if repo != expected[1] {
+			t.Errorf("Expected %v repo, got: %v", expected[1], repo)
+		}
+	}
+}

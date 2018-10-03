@@ -49,26 +49,36 @@ func New(cfg Config) *Server {
 	return &s
 }
 
-func (s *Server) findService(r *http.Request) *service {
+// findService returns a matching git subservice and parsed repository name
+func (s *Server) findService(req *http.Request) (*service, string) {
 	for _, svc := range s.services {
-		if r.Method == svc.method && strings.HasSuffix(r.URL.Path, svc.suffix) {
-			return &svc
+		if svc.method == req.Method && strings.HasSuffix(req.URL.Path, svc.suffix) {
+			path := strings.Replace(req.URL.Path, svc.suffix, "", 1)
+			return &svc, path
 		}
 	}
-	return nil
+	return nil, ""
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logInfo("request", r.Method+" "+r.Host+r.URL.String())
 
-	svc := s.findService(r)
+	// Find the git subservice to handle the request
+	svc, repoFullPath := s.findService(r)
 	if svc == nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	repoName := strings.Split(r.URL.Path, "/")[1]
-	repoPath := path.Join(s.config.Dir, repoName)
+	// Determine namespace and repo name from request path
+	repoNamespace, repoName := getNamespaceAndRepo(repoFullPath)
+	if repoName == "" {
+		logError("auth", fmt.Errorf("no repo name provided"))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	repoPath := path.Join(s.config.Dir, repoNamespace, repoName)
 
 	req := &Request{
 		Request:  r,
@@ -110,7 +120,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !repoExists(req.RepoPath) && s.config.AutoCreate == true {
-		err := initRepo(req.RepoName, &s.config)
+		err := initRepo(req.RepoPath, &s.config)
 		if err != nil {
 			logError("repo-init", err)
 		}
