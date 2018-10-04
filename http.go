@@ -64,26 +64,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logInfo("request", r.Method+" "+r.Host+r.URL.String())
 
 	// Find the git subservice to handle the request
-	svc, repoFullPath := s.findService(r)
+	svc, repoUrlPath := s.findService(r)
 	if svc == nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
 	// Determine namespace and repo name from request path
-	repoNamespace, repoName := getNamespaceAndRepo(repoFullPath)
+	repoNamespace, repoName := getNamespaceAndRepo(repoUrlPath)
 	if repoName == "" {
 		logError("auth", fmt.Errorf("no repo name provided"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	repoPath := path.Join(s.config.Dir, repoNamespace, repoName)
-
 	req := &Request{
 		Request:  r,
-		RepoName: repoName,
-		RepoPath: repoPath,
+		RepoName: path.Join(repoNamespace, repoName),
+		RepoPath: path.Join(s.config.Dir, repoNamespace, repoName),
 	}
 
 	if s.config.Auth {
@@ -120,7 +118,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !repoExists(req.RepoPath) && s.config.AutoCreate == true {
-		err := initRepo(req.RepoPath, &s.config)
+		err := initRepo(req.RepoName, &s.config)
 		if err != nil {
 			logError("repo-init", err)
 		}
@@ -227,14 +225,14 @@ func (s *Server) Setup() error {
 }
 
 func initRepo(name string, config *Config) error {
-	p := path.Join(config.Dir, name)
+	fullPath := path.Join(config.Dir, name)
 
-	if err := exec.Command(config.GitPath, "init", "--bare", p).Run(); err != nil {
+	if err := exec.Command(config.GitPath, "init", "--bare", fullPath).Run(); err != nil {
 		return err
 	}
 
 	for hook, script := range config.Hooks {
-		hookPath := filepath.Join(p, "hooks", hook)
+		hookPath := filepath.Join(fullPath, "hooks", hook)
 
 		logInfo("repo-init", fmt.Sprintf("creating %s hook for %s", hook, name))
 		if err := ioutil.WriteFile(hookPath, []byte(script), 0755); err != nil {
