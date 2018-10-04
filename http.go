@@ -49,31 +49,39 @@ func New(cfg Config) *Server {
 	return &s
 }
 
-func (s *Server) findService(r *http.Request) *service {
+// findService returns a matching git subservice and parsed repository name
+func (s *Server) findService(req *http.Request) (*service, string) {
 	for _, svc := range s.services {
-		if r.Method == svc.method && strings.HasSuffix(r.URL.Path, svc.suffix) {
-			return &svc
+		if svc.method == req.Method && strings.HasSuffix(req.URL.Path, svc.suffix) {
+			path := strings.Replace(req.URL.Path, svc.suffix, "", 1)
+			return &svc, path
 		}
 	}
-	return nil
+	return nil, ""
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logInfo("request", r.Method+" "+r.Host+r.URL.String())
 
-	svc := s.findService(r)
+	// Find the git subservice to handle the request
+	svc, repoUrlPath := s.findService(r)
 	if svc == nil {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
 
-	repoName := strings.Split(r.URL.Path, "/")[1]
-	repoPath := path.Join(s.config.Dir, repoName)
+	// Determine namespace and repo name from request path
+	repoNamespace, repoName := getNamespaceAndRepo(repoUrlPath)
+	if repoName == "" {
+		logError("auth", fmt.Errorf("no repo name provided"))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	req := &Request{
 		Request:  r,
-		RepoName: repoName,
-		RepoPath: repoPath,
+		RepoName: path.Join(repoNamespace, repoName),
+		RepoPath: path.Join(s.config.Dir, repoNamespace, repoName),
 	}
 
 	if s.config.Auth {
@@ -217,14 +225,14 @@ func (s *Server) Setup() error {
 }
 
 func initRepo(name string, config *Config) error {
-	p := path.Join(config.Dir, name)
+	fullPath := path.Join(config.Dir, name)
 
-	if err := exec.Command(config.GitPath, "init", "--bare", p).Run(); err != nil {
+	if err := exec.Command(config.GitPath, "init", "--bare", fullPath).Run(); err != nil {
 		return err
 	}
 
 	for hook, script := range config.Hooks {
-		hookPath := filepath.Join(p, "hooks", hook)
+		hookPath := filepath.Join(fullPath, "hooks", hook)
 
 		logInfo("repo-init", fmt.Sprintf("creating %s hook for %s", hook, name))
 		if err := ioutil.WriteFile(hookPath, []byte(script), 0755); err != nil {
