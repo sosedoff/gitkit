@@ -3,6 +3,7 @@ package gitkit
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 var gitCommandRegex = regexp.MustCompile(`^(git[-|\s]upload-pack|git[-|\s]upload-archive|git[-|\s]receive-pack) '(.*)'$`)
@@ -22,7 +23,7 @@ func ParseGitCommand(cmd string) (*GitCommand, error) {
 	result := &GitCommand{
 		Original: cmd,
 		Command:  matches[0][1],
-		Repo:     matches[0][2],
+		Repo:     strings.Replace(matches[0][2], "/", "", 1),
 	}
 
 	return result, nil
