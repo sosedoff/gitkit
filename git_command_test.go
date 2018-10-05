@@ -10,6 +10,7 @@ func TestParseGitCommand(t *testing.T) {
 	examples := map[string]GitCommand{
 		"git-upload-pack 'hello.git'":    GitCommand{"git-upload-pack", "hello.git", "git-upload-pack 'hello.git'"},
 		"git upload-pack 'hello.git'":    GitCommand{"git upload-pack", "hello.git", "git upload-pack 'hello.git'"},
+		"git-upload-pack '/hello.git'":   GitCommand{"git-upload-pack", "hello.git", "git-upload-pack 'hello.git'"},
 		"git-receive-pack 'hello.git'":   GitCommand{"git-receive-pack", "hello.git", "git-receive-pack 'hello.git'"},
 		"git receive-pack 'hello.git'":   GitCommand{"git receive-pack", "hello.git", "git receive-pack 'hello.git'"},
 		"git-upload-archive 'hello.git'": GitCommand{"git-upload-archive", "hello.git", "git-upload-archive 'hello.git'"},
