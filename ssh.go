@@ -190,7 +190,10 @@ func (s *SSH) createServerKey() error {
 	}
 
 	privateKeyFile, err := os.Create(s.config.KeyPath())
-	fmt.Println(err)
+	if err != nil {
+		return err
+	}
+
 	if err := os.Chmod(s.config.KeyPath(), 0600); err != nil {
 		return err
 	}
@@ -204,7 +207,6 @@ func (s *SSH) createServerKey() error {
 	}
 
 	pubKeyPath := s.config.KeyPath() + ".pub"
-	fmt.Println(pubKeyPath)
 	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return err
