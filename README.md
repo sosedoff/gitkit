@@ -358,21 +358,12 @@ Result:
 Sample script output
 ```
 
-## Sources
-
-Gitkit contains samples of code ported from the following projects:
-
-- [Flynn](https://github.com/flynn/flynn)
-- [Deis](https://github.com/deis/builder)
-- [Gitlab Workhorse](https://gitlab.com/gitlab-org/gitlab-workhorse)
-- [Gogs](https://github.com/gogits/gogs)
-
-Git docs:
+## References
 
 - https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols
 
 ## License
 
-The MIT License (MIT). See [LICENSE](LICENSE) file for more details.
+The MIT License
 
 Copyright (c) 2016-2018 Dan Sosedoff, <dan.sosedoff@gmail.com>
