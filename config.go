@@ -47,6 +47,11 @@ func (c *HookScripts) setupInDir(path string) error {
 	for name, script := range scripts {
 		fullPath := filepath.Join(basePath, name)
 
+		// Dont create hook if there's no script content
+		if script == "" {
+			continue
+		}
+
 		if err := ioutil.WriteFile(fullPath, []byte(script), 0755); err != nil {
 			logError("hook-update", err)
 			return err
