@@ -4,12 +4,10 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strings"
 	"syscall"
 )
@@ -231,14 +229,8 @@ func initRepo(name string, config *Config) error {
 		return err
 	}
 
-	for hook, script := range config.Hooks {
-		hookPath := filepath.Join(fullPath, "hooks", hook)
-
-		logInfo("repo-init", fmt.Sprintf("creating %s hook for %s", hook, name))
-		if err := ioutil.WriteFile(hookPath, []byte(script), 0755); err != nil {
-			logError("repo-init", err)
-			return err
-		}
+	if config.AutoHooks && config.Hooks != nil {
+		return config.Hooks.setupInDir(fullPath)
 	}
 
 	return nil
