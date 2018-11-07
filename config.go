@@ -3,19 +3,62 @@ package gitkit
 import (
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 )
 
 type Config struct {
-	KeyDir     string            // Directory for server ssh keys. Only used in SSH strategy.
-	Dir        string            // Directory that contains repositories
-	GitPath    string            // Path to git binary
-	GitUser    string            // User for ssh connections
-	AutoCreate bool              // Automatically create repostories
-	AutoHooks  bool              // Automatically setup git hooks
-	Hooks      map[string][]byte // Scripts for hooks/* directory
-	Auth       bool              // Require authentication
+	KeyDir     string       // Directory for server ssh keys. Only used in SSH strategy.
+	Dir        string       // Directory that contains repositories
+	GitPath    string       // Path to git binary
+	GitUser    string       // User for ssh connections
+	AutoCreate bool         // Automatically create repostories
+	AutoHooks  bool         // Automatically setup git hooks
+	Hooks      *HookScripts // Scripts for hooks/* directory
+	Auth       bool         // Require authentication
+}
+
+// HookScripts represents all repository server-size git hooks
+type HookScripts struct {
+	PreReceive  string
+	Update      string
+	PostReceive string
+}
+
+// Configure hook scripts in the repo base directory
+func (c *HookScripts) setupInDir(path string) error {
+	basePath := filepath.Join(path, "hooks")
+	scripts := map[string]string{
+		"pre-receive":  c.PreReceive,
+		"update":       c.Update,
+		"post-receive": c.PostReceive,
+	}
+
+	// Cleanup any existing hooks first
+	hookFiles, err := ioutil.ReadDir(basePath)
+	if err == nil {
+		for _, file := range hookFiles {
+			if err := os.Remove(filepath.Join(basePath, file.Name())); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Write new hook files
+	for name, script := range scripts {
+		fullPath := filepath.Join(basePath, name)
+
+		// Dont create hook if there's no script content
+		if script == "" {
+			continue
+		}
+
+		if err := ioutil.WriteFile(fullPath, []byte(script), 0755); err != nil {
+			logError("hook-update", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Config) KeyPath() string {
@@ -47,22 +90,10 @@ func (c *Config) setupHooks() error {
 			continue
 		}
 
-		hooksPath := path.Join(c.Dir, file.Name(), "hooks")
+		path := filepath.Join(c.Dir, file.Name())
 
-		// Cleanup all existing hooks
-		hookFiles, err := ioutil.ReadDir(hooksPath)
-		if err == nil {
-			for _, h := range hookFiles {
-				os.Remove(path.Join(hooksPath, h.Name()))
-			}
-		}
-
-		// Setup new hooks
-		for hook, script := range c.Hooks {
-			if err := ioutil.WriteFile(path.Join(hooksPath, hook), []byte(script), 0755); err != nil {
-				logError("hook-update", err)
-				return err
-			}
+		if err := c.Hooks.setupInDir(path); err != nil {
+			return err
 		}
 	}
 
