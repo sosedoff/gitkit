@@ -366,4 +366,4 @@ Sample script output
 
 The MIT License
 
-Copyright (c) 2016-2018 Dan Sosedoff, <dan.sosedoff@gmail.com>
+Copyright (c) 2016-2019 Dan Sosedoff, <dan.sosedoff@gmail.com>
