@@ -16,7 +16,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"errors"
+
 	"golang.org/x/crypto/ssh"
+)
+
+var (
+	AlreadyStartedErr = errors.New("server has already been started")
+	NoListenerErr     = errors.New("cannot call Serve() before Listen()")
 )
 
 type PublicKey struct {
@@ -27,6 +34,8 @@ type PublicKey struct {
 }
 
 type SSH struct {
+	listener net.Listener
+
 	sshconfig           *ssh.ServerConfig
 	config              *Config
 	PublicKeyLookupFunc func(string) (*PublicKey, error)
@@ -266,7 +275,11 @@ func (s *SSH) setup() error {
 	return nil
 }
 
-func (s *SSH) ListenAndServe(bind string) error {
+func (s *SSH) Listen(bind string) error {
+	if s.listener != nil {
+		return AlreadyStartedErr
+	}
+
 	if err := s.setup(); err != nil {
 		return err
 	}
@@ -275,16 +288,25 @@ func (s *SSH) ListenAndServe(bind string) error {
 		return err
 	}
 
-	listener, err := net.Listen("tcp", bind)
+	var err error
+	s.listener, err = net.Listen("tcp", bind)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (s *SSH) Serve() error {
+	if s.listener == nil {
+		return NoListenerErr
+	}
+
 	for {
-		conn, err := listener.Accept()
+		// wait for connection or Stop()
+		conn, err := s.listener.Accept()
 		if err != nil {
-			log.Printf("ssh: error accepting incoming connection: %v", err)
-			continue
+			return err
 		}
 
 		go func() {
@@ -316,4 +338,25 @@ func (s *SSH) ListenAndServe(bind string) error {
 			go s.handleConnection(keyId, chans)
 		}()
 	}
+}
+
+func (s *SSH) ListenAndServe(bind string) error {
+	if err := s.Listen(bind); err != nil {
+		return err
+	}
+	return s.Serve()
+}
+
+// Stop stops the server if it has been started, otherwise it is a no-op.
+func (s *SSH) Stop() error {
+	if s.listener == nil {
+		return nil
+	}
+
+	if err := s.listener.Close(); err != nil {
+		return err
+	}
+	s.listener = nil
+
+	return nil
 }
