@@ -22,8 +22,8 @@ import (
 )
 
 var (
-	AlreadyStartedErr = errors.New("server has already been started")
-	NoListenerErr     = errors.New("cannot call Serve() before Listen()")
+	ErrAlreadyStarted = errors.New("server has already been started")
+	ErrNoListener     = errors.New("cannot call Serve() before Listen()")
 )
 
 type PublicKey struct {
@@ -277,7 +277,7 @@ func (s *SSH) setup() error {
 
 func (s *SSH) Listen(bind string) error {
 	if s.listener != nil {
-		return AlreadyStartedErr
+		return ErrAlreadyStarted
 	}
 
 	if err := s.setup(); err != nil {
@@ -299,7 +299,7 @@ func (s *SSH) Listen(bind string) error {
 
 func (s *SSH) Serve() error {
 	if s.listener == nil {
-		return NoListenerErr
+		return ErrNoListener
 	}
 
 	for {
@@ -352,11 +352,9 @@ func (s *SSH) Stop() error {
 	if s.listener == nil {
 		return nil
 	}
+	defer func() {
+		s.listener = nil
+	}()
 
-	if err := s.listener.Close(); err != nil {
-		return err
-	}
-	s.listener = nil
-
-	return nil
+	return s.listener.Close()
 }
