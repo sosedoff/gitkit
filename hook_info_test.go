@@ -49,6 +49,6 @@ func Test_HookAction(t *testing.T) {
 	}
 
 	for expected, hook := range examples {
-		assert.Equal(t, expected, hook.Action())
+		assert.Equal(t, expected, parseHookAction(hook))
 	}
 }

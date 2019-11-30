@@ -265,7 +265,7 @@ import (
 // HookInfo contains information about branch, before and after revisions.
 // tmpPath is a temporary directory with checked out git tree for the commit.
 func receive(hook *gitkit.HookInfo, tmpPath string) error {
-  log.Println("Action:", hook.Action())
+  log.Println("Action:", hook.Action
   log.Println("Ref:", hook.Ref)
   log.Println("Ref name:", hook.RefName)
   log.Println("Old revision:", hook.OldRev)
@@ -282,17 +282,19 @@ func receive(hook *gitkit.HookInfo, tmpPath string) error {
     return fmt.Errorf("non fast-forward pushed are not allowed")
   }
 
+  // Check if branch is being deleted
+  if hook.Action == gitkit.BranchDeleteAction {
+    fmt.Println("Deleting branch!")
+    return nil
+  }
+
   // Getting a commit message is built-in
   message, err := gitkit.ReadCommitMessage(hook.NewRev)
   if err != nil {
     return err
   }
+  log.Println("Commit message:", message)
 
-  // Checking on user action
-  // Returns one of: branch.push, branch.create, branch.delete, tag.create, tag.delete
-  action := hook.Action()
-
-  log.Println("Message:", message)
   return nil
 }
 

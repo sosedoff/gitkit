@@ -9,8 +9,17 @@ import (
 	"strings"
 )
 
+const (
+	BranchPushAction   = "branch.push"
+	BranchCreateAction = "branch.create"
+	BranchDeleteAction = "branch.delete"
+	TagCreateAction    = "tag.create"
+	TagDeleteAction    = "tag.delete"
+)
+
 // HookInfo holds git hook context
 type HookInfo struct {
+	Action   string
 	RepoName string
 	RepoPath string
 	OldRev   string
@@ -45,12 +54,12 @@ func ReadHookInput(input io.Reader) (*HookInfo, error) {
 		RefType:  refchunks[1],
 		RefName:  refchunks[2],
 	}
+	info.Action = parseHookAction(info)
 
 	return &info, nil
 }
 
-// Action returns a name of hook action
-func (h *HookInfo) Action() string {
+func parseHookAction(h HookInfo) string {
 	action := "push"
 	context := "branch"
 
@@ -64,5 +73,5 @@ func (h *HookInfo) Action() string {
 		action = "delete"
 	}
 
-	return context + "." + action
+	return fmt.Sprintf("%s.%s", context, action)
 }
