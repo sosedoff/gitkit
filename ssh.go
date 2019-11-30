@@ -102,6 +102,8 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 
 				switch req.Type {
 				case "env":
+					log.Printf("ssh: incoming env request: %s\n", payload)
+
 					args := strings.Split(strings.Replace(payload, "\x00", "", -1), "\v")
 					if len(args) != 2 {
 						log.Printf("env: invalid env arguments: '%#v'", args)
@@ -109,6 +111,10 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 					}
 
 					args[0] = strings.TrimLeft(args[0], "\x04")
+					if len(args[0]) == 0 {
+						log.Printf("env: invalid key from payload: %s", payload)
+						continue
+					}
 
 					_, _, err := execCommandBytes("env", args[0]+"="+args[1])
 					if err != nil {
@@ -116,6 +122,8 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 						return
 					}
 				case "exec":
+					log.Printf("ssh: incoming exec request: %s\n", payload)
+
 					cmdName := strings.TrimLeft(payload, "'()")
 					log.Printf("ssh: payload '%v'", cmdName)
 
