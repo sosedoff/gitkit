@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// HookInfo holds git hook context
 type HookInfo struct {
 	RepoName string
 	RepoPath string
@@ -19,6 +20,7 @@ type HookInfo struct {
 	RefName  string
 }
 
+// ReadHookInput reads the hook context
 func ReadHookInput(input io.Reader) (*HookInfo, error) {
 	reader := bufio.NewReader(input)
 
@@ -47,6 +49,7 @@ func ReadHookInput(input io.Reader) (*HookInfo, error) {
 	return &info, nil
 }
 
+// Action returns a name of hook action
 func (h *HookInfo) Action() string {
 	action := "push"
 	context := "branch"

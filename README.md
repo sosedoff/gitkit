@@ -23,13 +23,17 @@ import (
 )
 
 func main() {
+  // Configure git hooks
+  hooks := &gitkit.HookScripts{
+    PreReceive: `echo "Hello World!"`,
+  }
+
+  // Configure git service
   service := gitkit.New(gitkit.Config{
     Dir:        "/path/to/repos",
     AutoCreate: true,
     AutoHooks:  true,
-    Hooks: map[string][]byte{
-      "pre-receive": []byte(`echo "Hello World!"`),
-    },
+    Hooks:      hooks,
   })
 
   // Configure git server. Will create git repos path if it does not exist.
@@ -39,7 +43,11 @@ func main() {
   }
 
   http.Handle("/", service)
-  http.ListenAndServe(":5000", nil)
+  
+  // Start HTTP server
+  if err := http.ListenAndServe(":5000", nil); err != nil {
+    log.Fatal(err)
+  }
 }
 ```
 
@@ -257,7 +265,9 @@ import (
 // HookInfo contains information about branch, before and after revisions.
 // tmpPath is a temporary directory with checked out git tree for the commit.
 func receive(hook *gitkit.HookInfo, tmpPath string) error {
+  log.Println("Action:", hook.Action())
   log.Println("Ref:", hook.Ref)
+  log.Println("Ref name:", hook.RefName)
   log.Println("Old revision:", hook.OldRev)
   log.Println("New revision:", hook.NewRev)
 
