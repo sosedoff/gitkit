@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,8 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"errors"
 
 	"golang.org/x/crypto/ssh"
 )
