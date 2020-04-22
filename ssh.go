@@ -365,3 +365,13 @@ func (s *SSH) Stop() error {
 
 	return s.listener.Close()
 }
+
+// Address returns the network address of the listener. This is in
+// particular useful when binding to :0 to get a free port assigned by
+// the OS.
+func (s *SSH) Address() string {
+	if s.listener != nil {
+		return s.listener.Addr().String()
+	}
+	return ""
+}
