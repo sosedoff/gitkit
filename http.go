@@ -22,7 +22,7 @@ type service struct {
 type Server struct {
 	config   Config
 	services []service
-	AuthFunc func(Credential, *Request) (bool, error)
+	AuthFunc func(Credential, *Request) (bool, string, error)
 }
 
 type Request struct {
@@ -103,7 +103,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		allow, err := s.AuthFunc(cred, req)
+		allow, msg, err := s.AuthFunc(cred, req)
 		if !allow || err != nil {
 			if err != nil {
 				logError("auth", err)
@@ -111,6 +111,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			logError("auth", fmt.Errorf("rejected user %s", cred.Username))
 			w.WriteHeader(http.StatusUnauthorized)
+			if msg != "" {
+				w.Write([]byte(msg))
+			}
 			return
 		}
 	}
