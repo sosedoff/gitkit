@@ -265,7 +265,7 @@ import (
 // HookInfo contains information about branch, before and after revisions.
 // tmpPath is a temporary directory with checked out git tree for the commit.
 func receive(hook *gitkit.HookInfo, tmpPath string) error {
-  log.Println("Action:", hook.Action
+  log.Println("Action:", hook.Action)
   log.Println("Ref:", hook.Ref)
   log.Println("Ref name:", hook.RefName)
   log.Println("Old revision:", hook.OldRev)
