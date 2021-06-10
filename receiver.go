@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 )
 
 const ZeroSHA = "0000000000000000000000000000000000000000"
@@ -41,7 +41,7 @@ func IsForcePush(hook *HookInfo) (bool, error) {
 
 	base := strings.TrimSpace(string(out))
 
-	// Non fast-forwared, meaning force
+	// Non fast-forwarded, meaning force
 	return base != hook.OldRev, nil
 }
 
@@ -55,7 +55,12 @@ func (r *Receiver) Handle(reader io.Reader) error {
 		return fmt.Errorf("cant push to non-master branch")
 	}
 
-	tmpDir := path.Join(r.TmpDir, uuid.NewV4().String())
+	id, err := uuid.NewV4()
+	if err != nil {
+		return fmt.Errorf("error generating new uuid: %v", err)
+	}
+
+	tmpDir := path.Join(r.TmpDir, id.String())
 	if err := os.MkdirAll(tmpDir, 0774); err != nil {
 		return err
 	}
