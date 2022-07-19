@@ -43,7 +43,7 @@ func main() {
   }
 
   http.Handle("/", service)
-  
+
   // Start HTTP server
   if err := http.ListenAndServe(":5000", nil); err != nil {
     log.Fatal(err)
@@ -247,8 +247,8 @@ ssh or not.
 
 ## Receiver
 
-In Git, The first script to run when handling a push from a client is pre-receive. 
-It takes a list of references that are being pushed from stdin; if it exits non-zero, 
+In Git, The first script to run when handling a push from a client is pre-receive.
+It takes a list of references that are being pushed from stdin; if it exits non-zero,
 none of them are accepted. [More on hooks](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks).
 
 ```go
@@ -350,7 +350,7 @@ like this:
 ```bash
 # Writing objects: 100% (3/3), 286 bytes | 0 bytes/s, done.
 # Total 3 (delta 2), reused 0 (delta 0)
-remote: Sample script output <---- YOUR SCRIPT 
+remote: Sample script output <---- YOUR SCRIPT
 ```
 
 There's a simple hack to remove this nasty `remote:` prefix:
@@ -360,7 +360,7 @@ There's a simple hack to remove this nasty `remote:` prefix:
 /my/receiver-script | sed -u "s/^/"$'\e[1G\e[K'"/"
 ```
 
-If you're running on OSX, use `gsed` instead: `brew install gnu-sed`. 
+If you're running on OSX, use `gsed` instead: `brew install gnu-sed`.
 
 Result:
 
@@ -378,4 +378,4 @@ Sample script output
 
 The MIT License
 
-Copyright (c) 2016-2019 Dan Sosedoff, <dan.sosedoff@gmail.com>
+Copyright (c) 2016-2022 Dan Sosedoff, <dan.sosedoff@gmail.com>
