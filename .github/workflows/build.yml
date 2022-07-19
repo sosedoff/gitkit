@@ -1,0 +1,31 @@
+name: build
+
+on:
+  - push
+
+env:
+  GO_VERSION: 1.18
+  CGO_ENABLED: 0
+
+jobs:
+  build:
+    name: tests
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install packages
+        run: go mod download
+
+      - name: Execute tests
+        run: make test
