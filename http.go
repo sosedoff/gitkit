@@ -186,6 +186,7 @@ func (s *Server) postRPC(rpc string, w http.ResponseWriter, r *Request) {
 	}
 
 	cmd, pipe := gitCommand(s.config.GitPath, subCommand(rpc), "--stateless-rpc", r.RepoPath)
+	defer pipe.Close()
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		fail500(w, context, err)
@@ -203,6 +204,7 @@ func (s *Server) postRPC(rpc string, w http.ResponseWriter, r *Request) {
 		fail500(w, context, err)
 		return
 	}
+	stdin.Close()
 
 	w.Header().Add("Content-Type", fmt.Sprintf("application/x-%s-result", rpc))
 	w.Header().Add("Cache-Control", "no-cache")
@@ -241,7 +243,7 @@ func repoExists(p string) bool {
 	return err == nil
 }
 
-func gitCommand(name string, args ...string) (*exec.Cmd, io.Reader) {
+func gitCommand(name string, args ...string) (*exec.Cmd, io.ReadCloser) {
 	cmd := exec.Command(name, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = os.Environ()
