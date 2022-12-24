@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_ReadHookInput(t *testing.T) {
+func TestReadHookInput(t *testing.T) {
 	input := "e285100b636ac67fa28d85685072158edaa01685 a3d33576d686e7dc1d90ec4b1a6e94e760a893b2 refs/heads/master\n"
 	info, err := ReadHookInput(strings.NewReader(input))
 
@@ -19,29 +19,29 @@ func Test_ReadHookInput(t *testing.T) {
 	assert.Equal(t, "master", info.RefName)
 }
 
-func Test_HookAction(t *testing.T) {
+func TestHookAction(t *testing.T) {
 	examples := map[string]HookInfo{
-		"branch.create": HookInfo{
+		"branch.create": {
 			OldRev:  "0000000000000000000000000000000000000000",
 			NewRev:  "e285100b636ac67fa28d85685072158edaa01685",
 			RefType: "heads",
 		},
-		"branch.delete": HookInfo{
+		"branch.delete": {
 			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
 			NewRev:  "0000000000000000000000000000000000000000",
 			RefType: "heads",
 		},
-		"branch.push": HookInfo{
+		"branch.push": {
 			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
 			NewRev:  "a3d33576d686e7dc1d90ec4b1a6e94e760a893b2",
 			RefType: "heads",
 		},
-		"tag.create": HookInfo{
+		"tag.create": {
 			OldRev:  "0000000000000000000000000000000000000000",
 			NewRev:  "e285100b636ac67fa28d85685072158edaa01685",
 			RefType: "tags",
 		},
-		"tag.delete": HookInfo{
+		"tag.delete": {
 			OldRev:  "e285100b636ac67fa28d85685072158edaa01685",
 			NewRev:  "0000000000000000000000000000000000000000",
 			RefType: "tags",
