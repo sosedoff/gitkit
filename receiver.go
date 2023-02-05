@@ -9,15 +9,17 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid"
+	"golang.org/x/exp/slices"
 )
 
 const ZeroSHA = "0000000000000000000000000000000000000000"
 
 type Receiver struct {
-	Debug       bool
-	MasterOnly  bool
-	TmpDir      string
-	HandlerFunc func(*HookInfo, string) error
+	Debug           bool
+	MasterOnly      bool
+	AllowedBranches []string
+	TmpDir          string
+	HandlerFunc     func(*HookInfo, string) error
 }
 
 func ReadCommitMessage(sha string) (string, error) {
@@ -45,14 +47,30 @@ func IsForcePush(hook *HookInfo) (bool, error) {
 	return base != hook.OldRev, nil
 }
 
+func (r *Receiver) CheckAllowedBranch(hook *HookInfo) error {
+	if r.MasterOnly { // for BC
+		r.AllowedBranches = append(r.AllowedBranches, "refs/heads/master")
+	}
+
+	if len(r.AllowedBranches) == 0 {
+		return nil
+	}
+
+	if !slices.Contains(r.AllowedBranches, hook.Ref) {
+		return fmt.Errorf("cannot push branch, allowed branches: %s", strings.Join(r.AllowedBranches, ", "))
+	}
+
+	return nil
+}
+
 func (r *Receiver) Handle(reader io.Reader) error {
 	hook, err := ReadHookInput(reader)
 	if err != nil {
 		return err
 	}
 
-	if r.MasterOnly && hook.Ref != "refs/heads/master" {
-		return fmt.Errorf("cant push to non-master branch")
+	if err = r.CheckAllowedBranch(hook); err != nil {
+		return err
 	}
 
 	id, err := uuid.NewV4()
