@@ -231,6 +231,9 @@ func (s *SSH) createServerKey() error {
 }
 
 func (s *SSH) setup() error {
+	if s.sshconfig != nil {
+		return nil
+	}
 	config := &ssh.ServerConfig{
 		ServerVersion: fmt.Sprintf("SSH-2.0-gitkit %s", Version),
 	}
@@ -374,4 +377,14 @@ func (s *SSH) Address() string {
 		return s.listener.Addr().String()
 	}
 	return ""
+}
+
+// SetSSHConfig can be used to set custom SSH Server settings.
+func (s *SSH) SetSSHConfig(cfg *ssh.ServerConfig) {
+	s.sshconfig = cfg
+}
+
+// SetListener can be used to set custom Listener.
+func (s *SSH) SetListener(l net.Listener) {
+	s.listener = l
 }
