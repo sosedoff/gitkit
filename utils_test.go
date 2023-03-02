@@ -3,6 +3,8 @@ package gitkit
 import (
 	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_subCommand(t *testing.T) {
@@ -50,13 +52,8 @@ func Test_packLine(t *testing.T) {
 		w.Reset()
 		err := packLine(w, example)
 
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-
-		if w.String() != expected {
-			t.Errorf("Expected %s, got %s", expected, w.String())
-		}
+		assert.NoError(t, err)
+		assert.Equal(t, expected, w.String())
 	}
 }
 
@@ -74,11 +71,7 @@ func Test_getNamespaceAndRepo(t *testing.T) {
 	for example, expected := range cases {
 		namespace, repo := getNamespaceAndRepo(example)
 
-		if namespace != expected[0] {
-			t.Errorf("Expected %v namespace, got: %v", expected[0], namespace)
-		}
-		if repo != expected[1] {
-			t.Errorf("Expected %v repo, got: %v", expected[1], repo)
-		}
+		assert.Equal(t, expected[0], namespace)
+		assert.Equal(t, expected[1], repo)
 	}
 }
