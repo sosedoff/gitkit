@@ -15,11 +15,11 @@ import (
 const ZeroSHA = "0000000000000000000000000000000000000000"
 
 type Receiver struct {
-	Debug           bool
-	MasterOnly      bool
-	AllowedBranches []string
-	TmpDir          string
-	HandlerFunc     func(*HookInfo, string) error
+	Debug       bool
+	MasterOnly  bool
+	AllowedRefs []string
+	TmpDir      string
+	HandlerFunc func(*HookInfo, string) error
 }
 
 func ReadCommitMessage(sha string) (string, error) {
@@ -49,15 +49,15 @@ func IsForcePush(hook *HookInfo) (bool, error) {
 
 func (r *Receiver) CheckAllowedBranch(hook *HookInfo) error {
 	if r.MasterOnly { // for BC
-		r.AllowedBranches = append(r.AllowedBranches, "refs/heads/master")
+		r.AllowedRefs = append(r.AllowedRefs, "refs/heads/master")
 	}
 
-	if len(r.AllowedBranches) == 0 {
+	if len(r.AllowedRefs) == 0 {
 		return nil
 	}
 
-	if !slices.Contains(r.AllowedBranches, hook.Ref) {
-		return fmt.Errorf("cannot push branch, allowed branches: %s", strings.Join(r.AllowedBranches, ", "))
+	if !slices.Contains(r.AllowedRefs, hook.Ref) {
+		return fmt.Errorf("cannot push branch, allowed branches: %s", strings.Join(r.AllowedRefs, ", "))
 	}
 
 	return nil

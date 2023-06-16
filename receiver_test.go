@@ -1,6 +1,7 @@
 package gitkit_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sosedoff/gitkit"
@@ -12,7 +13,7 @@ type gitReceiveMock struct {
 	masterOnly      bool
 	allowedBranches []string
 	ref             string
-	isErr           bool
+	err             error
 }
 
 func TestMasterOnly(t *testing.T) {
@@ -21,30 +22,28 @@ func TestMasterOnly(t *testing.T) {
 			name:       "push to master, no error",
 			masterOnly: true,
 			ref:        "refs/heads/master",
-			isErr:      false,
+			err:        nil,
 		},
 		{
 			name:       "push to a branch, should trigger error",
 			masterOnly: true,
 			ref:        "refs/heads/branch",
-			isErr:      true,
+			err:        fmt.Errorf("cannot push branch, allowed branches: refs/heads/master"),
 		},
 	}
 
 	for _, tc := range testCases {
-		r := &gitkit.Receiver{
-			MasterOnly: tc.masterOnly,
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			r := &gitkit.Receiver{
+				MasterOnly: tc.masterOnly,
+			}
 
-		err := r.CheckAllowedBranch(&gitkit.HookInfo{
-			Ref: tc.ref,
+			err := r.CheckAllowedBranch(&gitkit.HookInfo{
+				Ref: tc.ref,
+			})
+
+			assert.Equal(t, tc.err, err)
 		})
-
-		if !tc.isErr {
-			assert.NoError(t, err, "expected no error: %s", tc.name)
-		} else {
-			assert.Error(t, err, "expected an error: %s", tc.name)
-		}
 	}
 }
 
@@ -54,41 +53,39 @@ func TestAllowedBranches(t *testing.T) {
 			name:            "push to master, no error",
 			allowedBranches: []string{"refs/heads/master"},
 			ref:             "refs/heads/master",
-			isErr:           false,
+			err:             nil,
 		},
 		{
 			name:            "push to a branch, should trigger error",
 			allowedBranches: []string{"refs/heads/master"},
 			ref:             "refs/heads/some-branch",
-			isErr:           true,
+			err:             fmt.Errorf("cannot push branch, allowed branches: refs/heads/master"),
 		},
 		{
 			name:            "push to another-branch",
 			allowedBranches: []string{"refs/heads/another-branch"},
 			ref:             "refs/heads/another-branch",
-			isErr:           false,
+			err:             nil,
 		},
 		{
 			name:            "push to main and only allow main",
 			allowedBranches: []string{"refs/heads/main"},
 			ref:             "refs/heads/main",
-			isErr:           false,
+			err:             nil,
 		},
 	}
 
 	for _, tc := range testCases {
-		r := &gitkit.Receiver{
-			AllowedBranches: tc.allowedBranches,
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			r := &gitkit.Receiver{
+				AllowedRefs: tc.allowedBranches,
+			}
 
-		err := r.CheckAllowedBranch(&gitkit.HookInfo{
-			Ref: tc.ref,
+			err := r.CheckAllowedBranch(&gitkit.HookInfo{
+				Ref: tc.ref,
+			})
+
+			assert.Equal(t, tc.err, err)
 		})
-
-		if !tc.isErr {
-			assert.NoError(t, err, "expected no error: %s", tc.name)
-		} else {
-			assert.Error(t, err, "expected an error: %s", tc.name)
-		}
 	}
 }
