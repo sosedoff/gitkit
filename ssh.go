@@ -2,14 +2,9 @@ package gitkit
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -195,41 +190,6 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 	}
 }
 
-func (s *SSH) createServerKey() error {
-	if err := os.MkdirAll(s.config.KeyDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return err
-	}
-
-	privateKeyFile, err := os.Create(s.config.KeyPath())
-	if err != nil {
-		return err
-	}
-
-	if err := os.Chmod(s.config.KeyPath(), 0600); err != nil {
-		return err
-	}
-	defer privateKeyFile.Close()
-	if err != nil {
-		return err
-	}
-	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
-	if err := pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
-		return err
-	}
-
-	pubKeyPath := s.config.KeyPath() + ".pub"
-	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(pubKeyPath, ssh.MarshalAuthorizedKey(pub), 0644)
-}
-
 func (s *SSH) setup() error {
 	if s.sshconfig != nil {
 		return nil
@@ -263,19 +223,16 @@ func (s *SSH) setup() error {
 		}
 	}
 
-	keypath := s.config.KeyPath()
-	if !fileExists(keypath) {
-		if err := s.createServerKey(); err != nil {
+	keyPath := s.config.KeyPath()
+
+	k := NewKey(s.config.KeyDir)
+	if !fileExists(keyPath) {
+		if err := k.CreateRSA(); err != nil {
 			return err
 		}
 	}
 
-	privateBytes, err := ioutil.ReadFile(keypath)
-	if err != nil {
-		return err
-	}
-
-	private, err := ssh.ParsePrivateKey(privateBytes)
+	private, err := k.GetRSA()
 	if err != nil {
 		return err
 	}
