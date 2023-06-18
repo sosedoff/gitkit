@@ -30,9 +30,10 @@ type PublicKey struct {
 type SSH struct {
 	listener net.Listener
 
-	sshconfig           *ssh.ServerConfig
-	config              *Config
-	PublicKeyLookupFunc func(string) (*PublicKey, error)
+	sshconfig             *ssh.ServerConfig
+	config                *Config
+	PublicKeyLookupFunc   func(string) (*PublicKey, error)
+	ReposForKeyLookupFunc func(*PublicKey) ([]string, error)
 }
 
 func NewSSH(config Config) *SSH {
@@ -75,7 +76,7 @@ func execCommand(cmdname string, args ...string) (string, string, error) {
 	return string(bufOut), string(bufErr), err
 }
 
-func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
+func (s *SSH) handleConnection(exts map[string]string, chans <-chan ssh.NewChannel) {
 	for newChan := range chans {
 		if newChan.ChannelType() != "session" {
 			newChan.Reject(ssh.UnknownChannelType, "unknown channel type")
@@ -142,7 +143,15 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 
 					cmd := exec.Command(gitcmd.Command, gitcmd.Repo)
 					cmd.Dir = s.config.Dir
-					cmd.Env = append(os.Environ(), "GITKIT_KEY="+keyID)
+
+					envVariables := os.Environ()
+					// append data via ssh.Permissions.Extensions
+					for k, v := range exts {
+						log.Println("k=" + k + ", v=" + v)
+						envVariables = append(envVariables, "GITKIT_"+strings.ToUpper(k)+"="+v)
+					}
+					cmd.Env = envVariables
+
 					// cmd.Env = append(os.Environ(), "SSH_ORIGINAL_COMMAND="+cmdName)
 
 					stdout, err := cmd.StdoutPipe()
@@ -209,6 +218,10 @@ func (s *SSH) setup() error {
 			return fmt.Errorf("public key lookup func is not provided")
 		}
 
+		if s.ReposForKeyLookupFunc == nil {
+			log.Println("no repository callback, an authorized user may access any repositories")
+		}
+
 		config.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			pkey, err := s.PublicKeyLookupFunc(strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
 			if err != nil {
@@ -219,7 +232,23 @@ func (s *SSH) setup() error {
 				return nil, fmt.Errorf("auth handler did not return a key")
 			}
 
-			return &ssh.Permissions{Extensions: map[string]string{"key-id": pkey.Id}}, nil
+			var repos []string
+
+			if s.ReposForKeyLookupFunc != nil {
+				repos, err = s.ReposForKeyLookupFunc(pkey)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return &ssh.Permissions{
+				Extensions: map[string]string{
+					"key":          pkey.Id,
+					"fingerprint":  pkey.Fingerprint,
+					"name":         pkey.Name,
+					"repositories": strings.Join(repos, ","),
+				},
+			}, nil
 		}
 	}
 
@@ -296,13 +325,13 @@ func (s *SSH) Serve() error {
 				return
 			}
 
-			keyId := ""
+			var exts map[string]string
 			if sConn.Permissions != nil {
-				keyId = sConn.Permissions.Extensions["key-id"]
+				exts = sConn.Permissions.Extensions
 			}
 
 			go ssh.DiscardRequests(reqs)
-			go s.handleConnection(keyId, chans)
+			go s.handleConnection(exts, chans)
 		}()
 	}
 }
