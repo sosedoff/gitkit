@@ -208,6 +208,7 @@ Paste the following:
 ```
 Host localhost
   Port 2222
+  ForwardAgent no
 ```
 
 Now that the server is configured, we can fire it up:

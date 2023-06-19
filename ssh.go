@@ -2,14 +2,9 @@ package gitkit
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -35,9 +30,10 @@ type PublicKey struct {
 type SSH struct {
 	listener net.Listener
 
-	sshconfig           *ssh.ServerConfig
-	config              *Config
-	PublicKeyLookupFunc func(string) (*PublicKey, error)
+	sshconfig             *ssh.ServerConfig
+	config                *Config
+	PublicKeyLookupFunc   func(string) (*PublicKey, error)
+	ReposForKeyLookupFunc func(*PublicKey) ([]string, error)
 }
 
 func NewSSH(config Config) *SSH {
@@ -80,7 +76,7 @@ func execCommand(cmdname string, args ...string) (string, string, error) {
 	return string(bufOut), string(bufErr), err
 }
 
-func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
+func (s *SSH) handleConnection(exts map[string]string, chans <-chan ssh.NewChannel) {
 	for newChan := range chans {
 		if newChan.ChannelType() != "session" {
 			newChan.Reject(ssh.UnknownChannelType, "unknown channel type")
@@ -147,7 +143,15 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 
 					cmd := exec.Command(gitcmd.Command, gitcmd.Repo)
 					cmd.Dir = s.config.Dir
-					cmd.Env = append(os.Environ(), "GITKIT_KEY="+keyID)
+
+					envVariables := os.Environ()
+					// append data via ssh.Permissions.Extensions
+					for k, v := range exts {
+						log.Println("k=" + k + ", v=" + v)
+						envVariables = append(envVariables, "GITKIT_"+strings.ToUpper(k)+"="+v)
+					}
+					cmd.Env = envVariables
+
 					// cmd.Env = append(os.Environ(), "SSH_ORIGINAL_COMMAND="+cmdName)
 
 					stdout, err := cmd.StdoutPipe()
@@ -195,41 +199,6 @@ func (s *SSH) handleConnection(keyID string, chans <-chan ssh.NewChannel) {
 	}
 }
 
-func (s *SSH) createServerKey() error {
-	if err := os.MkdirAll(s.config.KeyDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return err
-	}
-
-	privateKeyFile, err := os.Create(s.config.KeyPath())
-	if err != nil {
-		return err
-	}
-
-	if err := os.Chmod(s.config.KeyPath(), 0600); err != nil {
-		return err
-	}
-	defer privateKeyFile.Close()
-	if err != nil {
-		return err
-	}
-	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
-	if err := pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
-		return err
-	}
-
-	pubKeyPath := s.config.KeyPath() + ".pub"
-	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(pubKeyPath, ssh.MarshalAuthorizedKey(pub), 0644)
-}
-
 func (s *SSH) setup() error {
 	if s.sshconfig != nil {
 		return nil
@@ -249,6 +218,10 @@ func (s *SSH) setup() error {
 			return fmt.Errorf("public key lookup func is not provided")
 		}
 
+		if s.ReposForKeyLookupFunc == nil {
+			log.Println("no repository callback, an authorized user may access any repositories")
+		}
+
 		config.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			pkey, err := s.PublicKeyLookupFunc(strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key))))
 			if err != nil {
@@ -259,23 +232,36 @@ func (s *SSH) setup() error {
 				return nil, fmt.Errorf("auth handler did not return a key")
 			}
 
-			return &ssh.Permissions{Extensions: map[string]string{"key-id": pkey.Id}}, nil
+			var repos []string
+
+			if s.ReposForKeyLookupFunc != nil {
+				repos, err = s.ReposForKeyLookupFunc(pkey)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return &ssh.Permissions{
+				Extensions: map[string]string{
+					"key":          pkey.Id,
+					"fingerprint":  pkey.Fingerprint,
+					"name":         pkey.Name,
+					"repositories": strings.Join(repos, ","),
+				},
+			}, nil
 		}
 	}
 
-	keypath := s.config.KeyPath()
-	if !fileExists(keypath) {
-		if err := s.createServerKey(); err != nil {
+	keyPath := s.config.KeyPath()
+
+	k := NewKey(s.config.KeyDir)
+	if !fileExists(keyPath) {
+		if err := k.CreateRSA(); err != nil {
 			return err
 		}
 	}
 
-	privateBytes, err := ioutil.ReadFile(keypath)
-	if err != nil {
-		return err
-	}
-
-	private, err := ssh.ParsePrivateKey(privateBytes)
+	private, err := k.GetRSA()
 	if err != nil {
 		return err
 	}
@@ -339,13 +325,13 @@ func (s *SSH) Serve() error {
 				return
 			}
 
-			keyId := ""
+			var exts map[string]string
 			if sConn.Permissions != nil {
-				keyId = sConn.Permissions.Extensions["key-id"]
+				exts = sConn.Permissions.Extensions
 			}
 
 			go ssh.DiscardRequests(reqs)
-			go s.handleConnection(keyId, chans)
+			go s.handleConnection(exts, chans)
 		}()
 	}
 }
