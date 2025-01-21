@@ -72,7 +72,7 @@ func (c *Config) Setup() error {
 		}
 	}
 
-	if c.AutoHooks == true {
+	if c.AutoHooks && c.Hooks != nil {
 		return c.setupHooks()
 	}
 
